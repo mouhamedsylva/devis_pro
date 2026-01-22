@@ -24,3 +24,73 @@ class AuthLogoutRequested extends AuthEvent {
   const AuthLogoutRequested();
 }
 
+// ✨ Nouveaux événements pour l'inscription avec OTP
+
+class AuthOTPRequested extends AuthEvent {
+  const AuthOTPRequested({
+    required this.email,
+    required this.companyName,
+  });
+
+  final String email;
+  final String companyName;
+
+  @override
+  List<Object?> get props => [email, companyName];
+}
+
+class AuthRegistrationRequested extends AuthEvent {
+  const AuthRegistrationRequested({
+    required this.phoneNumber,
+    required this.email,
+    required this.companyName,
+    required this.otpCode,
+  });
+
+  final String phoneNumber;
+  final String email;
+  final String companyName;
+  final String otpCode;
+
+  @override
+  List<Object?> get props => [phoneNumber, email, companyName, otpCode];
+}
+
+class AuthResendOTP extends AuthEvent {
+  const AuthResendOTP({
+    required this.email,
+    required this.companyName,
+  });
+
+  final String email;
+  final String companyName;
+
+  @override
+  List<Object?> get props => [email, companyName];
+}
+
+// ✨ Événements pour connexion avec OTP
+
+class AuthLoginOTPRequested extends AuthEvent {
+  const AuthLoginOTPRequested({
+    required this.phoneNumber,
+  });
+
+  final String phoneNumber;
+
+  @override
+  List<Object?> get props => [phoneNumber];
+}
+
+class AuthLoginWithOTP extends AuthEvent {
+  const AuthLoginWithOTP({
+    required this.phoneNumber,
+    required this.otpCode,
+  });
+
+  final String phoneNumber;
+  final String otpCode;
+
+  @override
+  List<Object?> get props => [phoneNumber, otpCode];
+}

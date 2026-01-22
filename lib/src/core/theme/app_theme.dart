@@ -14,7 +14,7 @@ class AppTheme {
         secondary: AppColors.black,
         surface: AppColors.white,
       ),
-      scaffoldBackgroundColor: AppColors.bg,
+      scaffoldBackgroundColor: Color(0xFFF7F7F7),
       appBarTheme: const AppBarTheme(
         backgroundColor: AppColors.yellow,
         foregroundColor: AppColors.black,

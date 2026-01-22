@@ -5,16 +5,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'src/core/services/email_service.dart';
 import 'src/core/theme/app_theme.dart';
 import 'src/data/datasources/local/app_database.dart';
-import 'src/data/datasources/local/sqflite_bootstrap.dart';
 import 'src/data/repositories/client_repository_impl.dart';
 import 'src/data/repositories/company_repository_impl.dart';
+import 'src/data/repositories/otp_repository_impl.dart';
 import 'src/data/repositories/product_repository_impl.dart';
 import 'src/data/repositories/quote_repository_impl.dart';
 import 'src/data/repositories/user_repository_impl.dart';
 import 'src/domain/repositories/client_repository.dart';
 import 'src/domain/repositories/company_repository.dart';
+import 'src/domain/repositories/otp_repository.dart';
 import 'src/domain/repositories/product_repository.dart';
 import 'src/domain/repositories/quote_repository.dart';
 import 'src/domain/repositories/user_repository.dart';
@@ -28,7 +30,6 @@ import 'src/presentation/screens/auth_gate.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await initSqflite();
   final db = await AppDatabase.open();
 
   runApp(
@@ -45,7 +46,13 @@ class DevisProApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final userRepository = UserRepositoryImpl(db);
+    // ✨ Service d'envoi d'emails (configuration SMTP Gmail)
+    // TODO: Remplacer par vos identifiants dans lib/src/core/services/email_service.dart
+    final emailService = EmailService();
+
+    // Repositories
+    final userRepository = UserRepositoryImpl(db.database);
+    final otpRepository = OTPRepositoryImpl(db.database, emailService);
     final companyRepository = CompanyRepositoryImpl(db);
     final clientRepository = ClientRepositoryImpl(db);
     final productRepository = ProductRepositoryImpl(db);
@@ -54,6 +61,7 @@ class DevisProApp extends StatelessWidget {
     return MultiRepositoryProvider(
       providers: [
         RepositoryProvider<UserRepository>.value(value: userRepository),
+        RepositoryProvider<OTPRepository>.value(value: otpRepository),
         RepositoryProvider<CompanyRepository>.value(value: companyRepository),
         RepositoryProvider<ClientRepository>.value(value: clientRepository),
         RepositoryProvider<ProductRepository>.value(value: productRepository),
@@ -62,7 +70,10 @@ class DevisProApp extends StatelessWidget {
       child: MultiBlocProvider(
         providers: [
           BlocProvider(
-            create: (_) => AuthBloc(userRepository: userRepository)..add(const AuthStarted()),
+            create: (_) => AuthBloc(
+              userRepository: userRepository,
+              otpRepository: otpRepository,
+            )..add(const AuthStarted()),
           ),
           BlocProvider(
             create: (_) => CompanyBloc(companyRepository: companyRepository),

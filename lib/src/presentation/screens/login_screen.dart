@@ -1,12 +1,14 @@
-/// LoginScreen – Auth par numéro de téléphone.
+﻿/// LoginScreen – Auth par numéro de téléphone avec design moderne.
 ///
-/// Pour le MVP offline, c'est un "login ou inscription" (si le numéro n'existe
-/// pas, on crée l'utilisateur).
+/// Design inspiré avec fond gradient, logo et animation de bouton au survol.
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../core/constants/app_colors.dart';
 import '../blocs/auth/auth_bloc.dart';
-import '../widgets/app_text_field.dart';
+import '../widgets/animated_gradient_button.dart';
+import 'otp_verification_screen.dart';
+import 'registration_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,64 +17,556 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
   final _phoneCtrl = TextEditingController();
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
 
   @override
   void dispose() {
     _phoneCtrl.dispose();
+    _tabController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final isWeb = screenWidth > 600;
+
     return BlocListener<AuthBloc, AuthState>(
       listenWhen: (p, c) => p.status != c.status,
       listener: (context, state) {
-        // La navigation est gérée par AuthGate; ici on affiche uniquement les erreurs.
-        if (state.status == AuthStatus.failure && state.message != null) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message!)));
+        // ✨ Navigation vers OTP si code envoyé (pour connexion)
+        if (state.status == AuthStatus.otpSent && _tabController.index == 0) {
+          // Mode connexion : naviguer vers vérification OTP
+          final phoneNumber = '+221${_phoneCtrl.text.replaceAll(RegExp(r'[^0-9]'), '')}';
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => OTPVerificationScreen(
+                phoneNumber: phoneNumber,
+                isLoginMode: true,
+              ),
+            ),
+          );
+        }
+        
+        // Message d'échec
+        if (state.status == AuthStatus.failure) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.white),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      state.message ?? 'Une erreur est survenue',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: const Color(0xFFD32F2F),
+              duration: const Duration(seconds: 4),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              margin: const EdgeInsets.all(16),
+            ),
+          );
+        }
+        
+        // Message de succès
+        if (state.status == AuthStatus.authenticated) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle_outline, color: Colors.white),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      state.message ?? 'Connexion réussie !',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: const Color(0xFF4CAF50),
+              duration: const Duration(seconds: 3),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              margin: const EdgeInsets.all(16),
+            ),
+          );
         }
       },
       child: Scaffold(
-        appBar: AppBar(title: const Text('DevisPro')),
-        body: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 12),
-              const Text(
-                'Connexion',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+        body: Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                const Color(0xFF2D2D2D), // Noir foncé
+                const Color(0xFF2D2D2D).withOpacity(0.95),
+                const Color(0xFF3D3D3D), // Gris très foncé
+              ],
+            ),
+          ),
+          child: SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                child: Container(
+                  width: isWeb ? 600 : screenWidth * 0.9,
+                  padding: EdgeInsets.all(isWeb ? 40 : 20),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Logo
+                      Image.asset(
+                        'assets/images/logo2.png',
+                        width: isWeb ? 300 : 250,
+                        height: isWeb ? 100 : 80,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) {
+                          // Si pas de logo, afficher le texte DEVISPRO
+                          return Column(
+                            children: [
+                              RichText(
+                                text: TextSpan(
+                                  children: [
+                                    TextSpan(
+                                      text: 'DEVIS',
+                                      style: TextStyle(
+                                        fontSize: isWeb ? 48 : 40,
+                                        fontWeight: FontWeight.w900,
+                                        color: AppColors.yellow,
+                                        letterSpacing: 2,
+                                      ),
+                                    ),
+                                    TextSpan(
+                                      text: 'PRO',
+                                      style: TextStyle(
+                                        fontSize: isWeb ? 48 : 40,
+                                        fontWeight: FontWeight.w900,
+                                        color: Colors.white,
+                                        letterSpacing: 2,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Sous-titre
+                      Text(
+                        'FACILE • RAPIDE • PROFESSIONNEL',
+                        style: TextStyle(
+                          fontSize: isWeb ? 14 : 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.yellow,
+                          letterSpacing: 2,
+                        ),
+                      ),
+
+                      const SizedBox(height: 60),
+
+                      // Carte blanche avec le formulaire
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(0),
+                          border: Border(
+                            top: BorderSide(color: AppColors.yellow, width: 4),
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            // Espacement en haut
+                            SizedBox(height: isWeb ? 30 : 24),
+                            
+                            // Onglets CONNEXION / INSCRIPTION
+                            Container(
+                              decoration: const BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(color: Color(0xFFE0E0E0), width: 1),
+                                ),
+                              ),
+                              child: TabBar(
+                                controller: _tabController,
+                                labelColor: const Color(0xFF2D2D2D),
+                                unselectedLabelColor: const Color(0xFF9E9E9E),
+                                labelStyle: TextStyle(
+                                  fontSize: isWeb ? 16 : 14,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 1.5,
+                                ),
+                                indicator: UnderlineTabIndicator(
+                                  borderSide: BorderSide(
+                                    color: AppColors.yellow,
+                                    width: 4, // Augmenté de 3 à 4
+                                  ),
+                                  insets: EdgeInsets.symmetric(horizontal: isWeb ? 60 : 40), // Largeur augmentée
+                                ),
+                                tabs: const [
+                                  Tab(text: 'CONNEXION'),
+                                  Tab(text: 'INSCRIPTION'),
+                                ],
+                              ),
+                            ),
+
+                            // Contenu de l'onglet
+                            SizedBox(
+                              height: 400,
+                              child: TabBarView(
+                                controller: _tabController,
+                                children: [
+                                  // Onglet CONNEXION
+                                  SingleChildScrollView(
+                                    padding: EdgeInsets.all(isWeb ? 40 : 30),
+                                    child: _buildConnexionTab(context, isWeb),
+                                  ),
+
+                                  // Onglet INSCRIPTION
+                                  SingleChildScrollView(
+                                    padding: EdgeInsets.all(isWeb ? 40 : 30),
+                                    child: _buildInscriptionTab(context, isWeb),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              const SizedBox(height: 8),
-              const Text('Entrez votre numéro. Si c’est la première fois, le compte sera créé.'),
-              const SizedBox(height: 16),
-              AppTextField(
-                controller: _phoneCtrl,
-                label: 'Numéro de téléphone',
-                keyboardType: TextInputType.phone,
-              ),
-              const SizedBox(height: 12),
-              BlocBuilder<AuthBloc, AuthState>(
-                builder: (context, state) {
-                  final loading = state.status == AuthStatus.loading;
-                  return ElevatedButton(
-                    onPressed: loading
-                        ? null
-                        : () {
-                            context.read<AuthBloc>().add(AuthLoginRequested(_phoneCtrl.text));
-                          },
-                    child: Text(loading ? 'Connexion...' : 'Continuer'),
-                  );
-                },
-              ),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
-}
 
+  Widget _buildConnexionTab(BuildContext context, bool isWeb) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Label
+        const Text(
+          'NUMÉRO DE TÉLÉPHONE',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF2D2D2D),
+            letterSpacing: 1,
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        // Indicatif + Champ téléphone
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Indicatif pays
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              decoration: BoxDecoration(
+                border: Border.all(color: const Color(0xFFE0E0E0)),
+                borderRadius: BorderRadius.circular(0),
+              ),
+              child: Row(
+                children: [
+                  Image.network(
+                    'https://flagcdn.com/w40/sn.png',
+                    width: 24,
+                    height: 16,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Icon(Icons.flag, size: 20);
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    '+221',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.yellow,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(width: 12),
+
+            // Champ téléphone
+            Expanded(
+              child: TextField(
+                controller: _phoneCtrl,
+                keyboardType: TextInputType.phone,
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: Color(0xFF2D2D2D),
+                ),
+                decoration: InputDecoration(
+                  hintText: '77 123 45 67',
+                  hintStyle: TextStyle(
+                    color: const Color(0xFF9E9E9E).withOpacity(0.5),
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.phone_android,
+                    color: Color(0xFF9E9E9E),
+                  ),
+                  filled: true,
+                  fillColor: const Color(0xFFF5F5F5),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(0),
+                    borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(0),
+                    borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(0),
+                    borderSide: BorderSide(color: AppColors.yellow, width: 2),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 32),
+
+        // Bouton SE CONNECTER avec animation
+        BlocBuilder<AuthBloc, AuthState>(
+          builder: (context, state) {
+            final loading = state.status == AuthStatus.loading;
+            return AnimatedGradientButton(
+              onPressed: loading
+                  ? null
+                  : () {
+                      // Validation du numéro de téléphone
+                      if (_phoneCtrl.text.trim().isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Row(
+                              children: [
+                                const Icon(Icons.warning_amber_rounded, color: Colors.white),
+                                const SizedBox(width: 12),
+                                const Expanded(
+                                  child: Text(
+                                    'Veuillez entrer votre numéro de téléphone',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            backgroundColor: const Color(0xFFFF9800),
+                            duration: const Duration(seconds: 3),
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            margin: const EdgeInsets.all(16),
+                          ),
+                        );
+                        return;
+                      }
+                      
+                      // ✨ Demander l'envoi d'OTP pour connexion
+                      final phoneNumber = '+221${_phoneCtrl.text.replaceAll(RegExp(r'[^0-9]'), '')}';
+                      context.read<AuthBloc>().add(
+                            AuthLoginOTPRequested(phoneNumber: phoneNumber),
+                          );
+                    },
+              text: loading ? 'ENVOI DU CODE...' : 'RECEVOIR LE CODE',
+              enabled: !loading,
+            );
+          },
+        ),
+
+        const SizedBox(height: 20),
+
+        // Message Email
+        const Text(
+          '📧 Un code de vérification sera envoyé à votre email',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 12,
+            color: Color(0xFF9E9E9E),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInscriptionTab(BuildContext context, bool isWeb) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Nom de l'entreprise
+        const Text(
+          'NOM DE L\'ENTREPRISE',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF2D2D2D),
+            letterSpacing: 1,
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        TextField(
+          style: const TextStyle(fontSize: 16, color: Color(0xFF2D2D2D)),
+          decoration: InputDecoration(
+            hintText: 'Mon Entreprise SARL',
+            hintStyle: TextStyle(
+              color: const Color(0xFF9E9E9E).withOpacity(0.5),
+            ),
+            prefixIcon: const Icon(Icons.business, color: Color(0xFF9E9E9E)),
+            filled: true,
+            fillColor: const Color(0xFFF5F5F5),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(0),
+              borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(0),
+              borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(0),
+              borderSide: BorderSide(color: AppColors.yellow, width: 2),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
+        // Numéro de téléphone
+        const Text(
+          'NUMÉRO DE TÉLÉPHONE',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF2D2D2D),
+            letterSpacing: 1,
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              decoration: BoxDecoration(
+                border: Border.all(color: const Color(0xFFE0E0E0)),
+              ),
+              child: const Text(
+                '+221',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.yellow,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextField(
+                keyboardType: TextInputType.phone,
+                style: const TextStyle(fontSize: 16, color: Color(0xFF2D2D2D)),
+                decoration: InputDecoration(
+                  hintText: '77 123 45 67',
+                  hintStyle: TextStyle(
+                    color: const Color(0xFF9E9E9E).withOpacity(0.5),
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.phone_android,
+                    color: Color(0xFF9E9E9E),
+                  ),
+                  filled: true,
+                  fillColor: const Color(0xFFF5F5F5),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(0),
+                    borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(0),
+                    borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(0),
+                    borderSide: BorderSide(color: AppColors.yellow, width: 2),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 32),
+
+        AnimatedGradientButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const RegistrationScreen(),
+              ),
+            );
+          },
+          text: 'CRÉER MON COMPTE',
+        ),
+
+        const SizedBox(height: 20),
+
+        const Text(
+          'Gratuit • Sans engagement • Données sécurisées',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 12, color: Color(0xFF9E9E9E)),
+        ),
+      ],
+    );
+  }
+}

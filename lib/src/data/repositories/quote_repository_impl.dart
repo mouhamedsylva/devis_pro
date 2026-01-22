@@ -1,10 +1,9 @@
 /// Impl SQLite du QuoteRepository (devis + items).
-import 'package:sqflite/sqflite.dart';
-
 import '../../domain/entities/quote.dart';
 import '../../domain/entities/quote_item.dart';
 import '../../domain/repositories/quote_repository.dart';
 import '../datasources/local/app_database.dart';
+import '../datasources/local/database_interface.dart';
 import '../models/quote_item_model.dart';
 import '../models/quote_model.dart';
 
@@ -94,7 +93,7 @@ class QuoteRepositoryImpl implements QuoteRepository {
     );
   }
 
-  Future<String> _generateQuoteNumber(DatabaseExecutor db) async {
+  Future<String> _generateQuoteNumber(DatabaseInterface db) async {
     // Format lisible: DV-YYYYMMDD-#### (auto incrément au jour)
     final now = DateTime.now();
     final y = now.year.toString().padLeft(4, '0');
