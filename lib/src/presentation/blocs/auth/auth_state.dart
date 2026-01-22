@@ -12,6 +12,11 @@ class AuthState extends Equatable {
   const AuthState.unauthenticated() : this._(status: AuthStatus.unauthenticated);
   const AuthState.authenticated(User user) : this._(status: AuthStatus.authenticated, user: user);
   const AuthState.failure(String message) : this._(status: AuthStatus.failure, message: message);
+  
+  // ✨ Nouveaux états pour OTP
+  const AuthState.otpSent({String? message}) 
+      : this._(status: AuthStatus.otpSent, message: message ?? 'Code envoyé par email');
+  const AuthState.otpVerifying() : this._(status: AuthStatus.otpVerifying);
 
   final AuthStatus status;
   final User? user;
@@ -21,5 +26,13 @@ class AuthState extends Equatable {
   List<Object?> get props => [status, user, message];
 }
 
-enum AuthStatus { unknown, loading, unauthenticated, authenticated, failure }
+enum AuthStatus { 
+  unknown, 
+  loading, 
+  unauthenticated, 
+  authenticated, 
+  failure,
+  otpSent,        // ✨ Code OTP envoyé
+  otpVerifying,   // ✨ Vérification OTP en cours
+}
 
