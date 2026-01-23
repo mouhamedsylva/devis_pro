@@ -73,10 +73,18 @@ class _ClientsScreenState extends State<ClientsScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openClientDialog(),
-        icon: const Icon(Icons.add),
-        label: const Text('Ajouter'),
+      floatingActionButton: BlocBuilder<ClientBloc, ClientState>(
+        builder: (context, state) {
+          // Masquer le FAB quand il n'y a pas de clients (empty state)
+          if (state.clients.isEmpty && state.status != ClientStatus.loading) {
+            return const SizedBox.shrink();
+          }
+          return FloatingActionButton.extended(
+            onPressed: () => _openClientDialog(),
+            icon: const Icon(Icons.add),
+            label: const Text('Ajouter'),
+          );
+        },
       ),
       body: BlocConsumer<ClientBloc, ClientState>(
         listenWhen: (p, c) => c.status == ClientStatus.failure && c.message != null,
