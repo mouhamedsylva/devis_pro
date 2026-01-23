@@ -4,6 +4,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:sizer/sizer.dart';
 
 import 'src/core/services/email_service.dart';
 import 'src/core/theme/app_theme.dart';
@@ -106,11 +107,15 @@ class DevisProApp extends StatelessWidget {
               ..add(const TemplateInitializePredefined()),
           ),
         ],
-        child: MaterialApp(
-          debugShowCheckedModeBanner: false,
-          title: 'DevisPro',
-          theme: AppTheme.light(),
-          home: const AuthGate(),
+        child: Sizer(
+          builder: (context, orientation, deviceType) {
+            return MaterialApp(
+              debugShowCheckedModeBanner: false,
+              title: 'DevisPro',
+              theme: AppTheme.light(),
+              home: const AuthGate(),
+            );
+          },
         ),
       ),
     );

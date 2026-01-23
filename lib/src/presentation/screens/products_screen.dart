@@ -160,6 +160,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
   }
 
   Future<void> _openProductDialog({Product? existing}) async {
+    if (!mounted) return;
+    
     final bloc = context.read<ProductBloc>();
     final nameCtrl = TextEditingController(text: existing?.name ?? '');
     final priceCtrl = TextEditingController(text: existing?.unitPrice.toString() ?? '');
@@ -167,15 +169,21 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
     final saved = await showDialog<bool>(
       context: context,
-      barrierDismissible: false,
-      builder: (_) => Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        elevation: 10,
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 500),
-          child: SingleChildScrollView(
+      barrierDismissible: true,
+      useSafeArea: true,
+      builder: (dialogContext) {
+        final screenHeight = MediaQuery.of(dialogContext).size.height;
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          elevation: 10,
+          child: Container(
+            constraints: BoxConstraints(
+              maxWidth: 500,
+              maxHeight: screenHeight * 0.9,
+            ),
+            child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -379,7 +387,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     children: [
                       // Bouton Annuler
                       TextButton(
-                        onPressed: () => Navigator.pop(context, false),
+                        onPressed: () => Navigator.pop(dialogContext, false),
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                           shape: RoundedRectangleBorder(
@@ -400,7 +408,20 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       
                       // Bouton Enregistrer
                       ElevatedButton.icon(
-                        onPressed: () => Navigator.pop(context, true),
+                        onPressed: () {
+                          // Valider les champs avant de fermer
+                          final name = nameCtrl.text.trim();
+                          if (name.isEmpty) {
+                            ScaffoldMessenger.of(dialogContext).showSnackBar(
+                              const SnackBar(
+                                content: Text('Le nom du produit est requis'),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                            return;
+                          }
+                          Navigator.pop(dialogContext, true);
+                        },
                         icon: const Icon(Icons.check_circle_rounded, size: 20),
                         label: const Text(
                           'Enregistrer',
@@ -426,15 +447,28 @@ class _ProductsScreenState extends State<ProductsScreen> {
               ],
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
+
+    if (!mounted) {
+      nameCtrl.dispose();
+      priceCtrl.dispose();
+      vatCtrl.dispose();
+      return;
+    }
 
     if (saved == true) {
       final name = nameCtrl.text.trim();
       final unitPrice = double.tryParse(priceCtrl.text.trim().replaceAll(',', '.')) ?? 0;
       final vatPercent = double.tryParse(vatCtrl.text.trim().replaceAll(',', '.')) ?? 0;
       final vatRate = vatPercent / 100.0;
+      
+      // Nettoyer les contrôleurs avant de continuer
+      nameCtrl.dispose();
+      priceCtrl.dispose();
+      vatCtrl.dispose();
+      
       if (name.isEmpty) return;
       if (existing == null) {
         bloc.add(ProductCreateRequested(name: name, unitPrice: unitPrice, vatRate: vatRate));
@@ -445,6 +479,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
           ),
         );
       }
+    } else {
+      // Nettoyer les contrôleurs si l'utilisateur a annulé
+      nameCtrl.dispose();
+      priceCtrl.dispose();
+      vatCtrl.dispose();
     }
   }
 

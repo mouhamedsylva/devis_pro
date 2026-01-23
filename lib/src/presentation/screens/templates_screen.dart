@@ -6,6 +6,7 @@ import '../../domain/entities/template.dart';
 import '../blocs/template/template_bloc.dart';
 import '../blocs/template/template_event.dart';
 import '../blocs/template/template_state.dart';
+import 'template_editor_screen.dart';
 
 /// Écran de gestion des templates de devis.
 class TemplatesScreen extends StatefulWidget {
@@ -146,11 +147,9 @@ class _TemplatesScreenState extends State<TemplatesScreen>
       floatingActionButton: _selectedCategory == 'Personnalisés'
           ? FloatingActionButton.extended(
               onPressed: () {
-                // TODO: Ouvrir l'écran de création de template
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Création de template personnalisé - À implémenter'),
-                  ),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const TemplateEditorScreen()),
                 );
               },
               backgroundColor: AppColors.yellow,
@@ -217,11 +216,9 @@ class _TemplatesScreenState extends State<TemplatesScreen>
             const SizedBox(height: 32),
             ElevatedButton.icon(
               onPressed: () {
-                // TODO: Ouvrir l'écran de création de template
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Création de template personnalisé - À implémenter'),
-                  ),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const TemplateEditorScreen()),
                 );
               },
               icon: const Icon(Icons.add),
@@ -397,14 +394,20 @@ class _TemplatesScreenState extends State<TemplatesScreen>
     }
   }
 
-  void _showTemplateDetails(QuoteTemplate template) {
+  void _showTemplateDetails(QuoteTemplate template) async {
+    // Charger les détails du template
     context.read<TemplateBloc>().add(TemplateLoadDetails(template.id));
+    
+    // Attendre un peu pour que le bloc commence à charger
+    await Future.delayed(const Duration(milliseconds: 100));
+
+    if (!mounted) return;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) {
+      builder: (bottomSheetContext) {
         return DraggableScrollableSheet(
           initialChildSize: 0.7,
           minChildSize: 0.5,
@@ -415,21 +418,101 @@ class _TemplatesScreenState extends State<TemplatesScreen>
                 color: Colors.white,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
-              child: BlocBuilder<TemplateBloc, TemplateState>(
-                builder: (context, state) {
-                  if (state is TemplateLoading) {
-                    return const Center(child: CircularProgressIndicator());
+              child: BlocConsumer<TemplateBloc, TemplateState>(
+                listenWhen: (previous, current) => current is TemplateError,
+                listener: (context, state) {
+                  if (state is TemplateError) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(state.message),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
                   }
-
-                  if (state is TemplateDetailsLoaded) {
-                    return _buildTemplateDetailsContent(
-                      state.template,
-                      state.items,
-                      scrollController,
+                },
+                buildWhen: (previous, current) {
+                  // Ne reconstruire que pour les états pertinents
+                  return current is TemplateLoading ||
+                      current is TemplateDetailsLoaded ||
+                      current is TemplateError;
+                },
+                builder: (context, state) {
+                  // Afficher le chargement si on est en train de charger
+                  if (state is TemplateLoading) {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24.0),
+                        child: CircularProgressIndicator(),
+                      ),
                     );
                   }
 
-                  return const Center(child: Text('Erreur de chargement'));
+                  // Afficher les détails si chargés
+                  if (state is TemplateDetailsLoaded) {
+                    // Vérifier que c'est bien le bon template
+                    if (state.template.id == template.id) {
+                      return _buildTemplateDetailsContent(
+                        state.template,
+                        state.items,
+                        scrollController,
+                      );
+                    } else {
+                      // Si ce n'est pas le bon template, attendre
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(24.0),
+                          child: CircularProgressIndicator(),
+                        ),
+                      );
+                    }
+                  }
+
+                  // Gérer les erreurs
+                  if (state is TemplateError) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              size: 48,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              state.message,
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey[600],
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 8),
+                            TextButton(
+                              onPressed: () {
+                                // Réessayer de charger
+                                context.read<TemplateBloc>().add(
+                                      TemplateLoadDetails(template.id),
+                                    );
+                              },
+                              child: const Text('Réessayer'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+
+                  // Pour tous les autres états (TemplateListLoaded, etc.), afficher le chargement
+                  // car on attend que les détails soient chargés
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(24.0),
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
                 },
               ),
             );
@@ -438,7 +521,9 @@ class _TemplatesScreenState extends State<TemplatesScreen>
       },
     ).then((_) {
       // Recharger la liste après fermeture du bottom sheet
-      _loadTemplates();
+      if (mounted) {
+        _loadTemplates();
+      }
     });
   }
 

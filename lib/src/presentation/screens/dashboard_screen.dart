@@ -13,11 +13,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../blocs/auth/auth_bloc.dart';
 import '../../core/constants/app_colors.dart';
-import 'clients_screen.dart';
+// import 'clients_screen.dart'; // Commenté : gestion des clients désactivée - saisie directe dans l'éditeur de devis
 import 'company_screen.dart';
-import 'products_screen.dart';
+// import 'products_screen.dart'; // Commenté : les produits peuvent être créés directement dans l'éditeur de devis
 import 'quotes_screen.dart';
-import 'templates_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -47,11 +46,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
       case 0:
         return _buildHomeScreen();
       case 1:
-        return const ClientsScreen();
-      case 2:
+        // case 1 était ClientsScreen - maintenant redirigé vers Devis
         return const QuotesScreen();
-      case 3:
+      case 2:
+        // case 2 était QuotesScreen - maintenant redirigé vers Entreprise
         return const CompanyScreen();
+      // case 3 était CompanyScreen - supprimé
       default:
         return _buildHomeScreen();
     }
@@ -101,23 +101,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     label: 'Accueil',
                     index: 0,
                   ),
-                  _buildNavItem(
-                    icon: Icons.people_rounded,
-                    label: 'Clients',
-                    index: 1,
-                    badge: totalClients,
-                  ),
+                  // Onglet Clients commenté - gestion des clients désactivée
+                  // _buildNavItem(
+                  //   icon: Icons.people_rounded,
+                  //   label: 'Clients',
+                  //   index: 1,
+                  //   badge: totalClients,
+                  // ),
                   _buildNavItem(
                     icon: Icons.receipt_long_rounded,
                     label: 'Devis',
-                    index: 2,
+                    index: 1, // Index changé de 2 à 1
                     badge: pendingQuotes,
                     showBadge: pendingQuotes != null && pendingQuotes > 0,
                   ),
                   _buildNavItem(
                     icon: Icons.store_rounded,
                     label: 'Entreprise',
-                    index: 3,
+                    index: 2, // Index changé de 3 à 2
                   ),
                 ],
               ),
@@ -314,7 +315,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const SizedBox(height: 32),
 
                     // Section activité récente
-                    _buildRecentActivity(),
+                    _buildRecentActivity(state),
 
                     const SizedBox(height: 32),
                   ],
@@ -420,9 +421,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                         child: IconButton(
                           tooltip: 'Déconnexion',
-                          onPressed: () => context.read<AuthBloc>().add(
-                                const AuthLogoutRequested(),
-                              ),
+                          onPressed: () => _confirmLogout(context),
                           icon: const Icon(
                             Icons.logout_rounded,
                             color: Color(0xFF666666),
@@ -797,17 +796,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
           
           Row(
             children: [
-              Expanded(
-                child: _buildQuickNavCard(
-                  icon: Icons.inventory_2_rounded,
-                  label: 'Produits',
-                  color: const Color(0xFF2196F3),
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const ProductsScreen()),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
+              // Raccourci Produits commenté - les produits peuvent être créés directement dans l'éditeur de devis
+              // Expanded(
+              //   child: _buildQuickNavCard(
+              //     icon: Icons.inventory_2_rounded,
+              //     label: 'Produits',
+              //     color: const Color(0xFF2196F3),
+              //     onTap: () => Navigator.of(context).push(
+              //       MaterialPageRoute(builder: (_) => const ProductsScreen()),
+              //     ),
+              //   ),
+              // ),
+              // const SizedBox(width: 12),
               Expanded(
                 child: _buildQuickNavCard(
                   icon: Icons.settings_rounded,
@@ -816,6 +816,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   onTap: () => _onItemTapped(3), // Aller à l'onglet Entreprise
                 ),
               ),
+              const Expanded(child: SizedBox()), // Espace vide pour équilibrer la mise en page
             ],
           ),
           
@@ -823,18 +824,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           
           Row(
             children: [
-              Expanded(
-                child: _buildQuickNavCard(
-                  icon: Icons.note_add_rounded,
-                  label: 'Modèles',
-                  color: const Color(0xFF9C27B0),
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const TemplatesScreen()),
-                  ),
-                ),
-              ),
+              const Expanded(child: SizedBox()), // (Modèles déplacé vers l'écran Devis)
               const SizedBox(width: 12),
-              const Expanded(child: SizedBox()), // Placeholder pour alignement
+              const Expanded(child: SizedBox()),
             ],
           ),
         ],
@@ -896,7 +888,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildRecentActivity() {
+  Widget _buildRecentActivity(DashboardLoaded state) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
@@ -930,31 +922,46 @@ class _DashboardScreenState extends State<DashboardScreen> {
           
           const SizedBox(height: 12),
           
-          // TODO: Remplacer par vraies données
-          _buildActivityItem(
-            icon: Icons.check_circle_rounded,
-            title: 'Devis #D-2025-001 accepté',
-            time: 'Il y a 2 heures',
-            color: const Color(0xFF4CAF50),
-          ),
-          
-          const SizedBox(height: 10),
-          
-          _buildActivityItem(
-            icon: Icons.person_add_rounded,
-            title: 'Nouveau client ajouté',
-            time: 'Il y a 5 heures',
-            color: const Color(0xFF2196F3),
-          ),
-          
-          const SizedBox(height: 10),
-          
-          _buildActivityItem(
-            icon: Icons.drafts_rounded,
-            title: 'Devis #D-2025-002 créé',
-            time: 'Hier',
-            color: AppColors.yellow,
-          ),
+          // Afficher les activités récentes dynamiques
+          if (state.recentActivities.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Center(
+                child: Text(
+                  'Aucune activité récente',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 14,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+            )
+          else
+            ...state.recentActivities.asMap().entries.map((entry) {
+              final index = entry.key;
+              final activity = entry.value;
+              return Padding(
+                padding: EdgeInsets.only(bottom: index < state.recentActivities.length - 1 ? 10 : 0),
+                child: _buildActivityItem(
+                  icon: activity.icon,
+                  title: activity.title,
+                  time: activity.timeAgo,
+                  color: activity.color,
+                ),
+              );
+            }).toList(),
         ],
       ),
     );
@@ -1071,5 +1078,87 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return '${(amount / 1000).toStringAsFixed(0)}K';
     }
     return amount.toStringAsFixed(0);
+  }
+
+  /// Affiche un dialogue de confirmation avant la déconnexion.
+  Future<void> _confirmLogout(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.logout_rounded,
+                color: Colors.orange,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Déconnexion',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Êtes-vous sûr de vouloir vous déconnecter ?',
+          style: TextStyle(
+            fontSize: 15,
+            height: 1.5,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            ),
+            child: const Text(
+              'Annuler',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              'Déconnexion',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      context.read<AuthBloc>().add(const AuthLogoutRequested());
+    }
   }
 }

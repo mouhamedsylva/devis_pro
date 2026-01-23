@@ -64,7 +64,9 @@ class QuoteRepositoryImpl implements QuoteRepository {
 
   @override
   Future<Quote> createDraft({
-    required int clientId,
+    int? clientId,
+    String? clientName,
+    String? clientPhone,
     required DateTime date,
     required List<QuoteItemDraft> items,
     required String status,
@@ -90,6 +92,8 @@ class QuoteRepositoryImpl implements QuoteRepository {
       final quoteId = await txn.insert('quotes', {
         'quoteNumber': quoteNumber,
         'clientId': clientId,
+        'clientName': clientName,
+        'clientPhone': clientPhone,
         'date': date.toIso8601String(),
         'status': status,
         'totalHT': totalHT,

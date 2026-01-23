@@ -66,6 +66,15 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   void dispose() {
+    _progressTimer?.cancel();
+    _logoEnterController.stop();
+    _ringsEnterController.stop();
+    _titleEnterController.stop();
+    _progressEnterController.stop();
+    _logoFloatController.stop();
+    _rotationController.stop();
+    _glitchController.stop();
+    _fadeController.stop();
     _logoEnterController.dispose();
     _ringsEnterController.dispose();
     _titleEnterController.dispose();
@@ -74,7 +83,6 @@ class _SplashScreenState extends State<SplashScreen>
     _rotationController.dispose();
     _glitchController.dispose();
     _fadeController.dispose();
-    _progressTimer?.cancel();
     super.dispose();
   }
 
@@ -147,24 +155,29 @@ class _SplashScreenState extends State<SplashScreen>
   Future<void> _startAnimationSequence() async {
     // 1. Logo + cercle arrivent avec rotation (1.2s)
     await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;
     _logoEnterController.forward();
     
     // 2. Anneaux arrivent en tournant (après 0.6s)
     await Future.delayed(const Duration(milliseconds: 600));
+    if (!mounted) return;
     _ringsEnterController.forward();
     _rotationController.repeat(); // Commencer la rotation continue
     
     // 3. Titre arrive (après 0.5s)
     await Future.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
     _titleEnterController.forward();
     
     // 4. Progress arrive et démarre (après 0.4s)
     await Future.delayed(const Duration(milliseconds: 400));
+    if (!mounted) return;
     _progressEnterController.forward();
     _startProgressAnimation();
     
     // Démarrer les animations continues
     await Future.delayed(const Duration(milliseconds: 200));
+    if (!mounted) return;
     _logoFloatController.repeat();
     _glitchController.repeat();
   }
@@ -191,17 +204,19 @@ class _SplashScreenState extends State<SplashScreen>
           _statusText = 'Prêt à démarrer !';
           timer.cancel();
           
-          _fadeController.forward().then((_) {
-            Future.delayed(const Duration(milliseconds: 500), () {
-              if (mounted) {
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(
-                    builder: (context) => const LoginScreen(),
-                  ),
-                );
-              }
+          if (mounted) {
+            _fadeController.forward().then((_) {
+              Future.delayed(const Duration(milliseconds: 500), () {
+                if (mounted) {
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(
+                      builder: (context) => const LoginScreen(),
+                    ),
+                  );
+                }
+              });
             });
-          });
+          }
         } else {
           final newStatusIndex = (_progress * _statuses.length).floor();
           if (newStatusIndex != statusIndex && newStatusIndex < _statuses.length) {

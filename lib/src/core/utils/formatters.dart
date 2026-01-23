@@ -37,6 +37,31 @@ class Formatters {
     return '+221$cleaned';
   }
 
+  /// Formate une date en texte relatif (ex: "Il y a 2 heures", "Hier", "Il y a 3 jours").
+  static String timeAgo(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inDays == 0) {
+      if (difference.inHours == 0) {
+        if (difference.inMinutes == 0) {
+          return 'À l\'instant';
+        }
+        return 'Il y a ${difference.inMinutes} ${difference.inMinutes == 1 ? 'minute' : 'minutes'}';
+      }
+      return 'Il y a ${difference.inHours} ${difference.inHours == 1 ? 'heure' : 'heures'}';
+    } else if (difference.inDays == 1) {
+      return 'Hier';
+    } else if (difference.inDays < 7) {
+      return 'Il y a ${difference.inDays} jours';
+    } else if (difference.inDays < 30) {
+      final weeks = (difference.inDays / 7).floor();
+      return 'Il y a $weeks ${weeks == 1 ? 'semaine' : 'semaines'}';
+    } else {
+      return dateShort(dateTime);
+    }
+  }
+
   const Formatters._();
 }
 

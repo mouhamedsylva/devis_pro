@@ -6,7 +6,9 @@ class QuoteModel {
     return Quote(
       id: map['id'] as int,
       quoteNumber: map['quoteNumber'] as String,
-      clientId: map['clientId'] as int,
+      clientId: map['clientId'] as int?,
+      clientName: map['clientName'] as String?,
+      clientPhone: map['clientPhone'] as String?,
       date: DateTime.parse(map['date'] as String),
       status: map['status'] as String,
       totalHT: (map['totalHT'] as num).toDouble(),

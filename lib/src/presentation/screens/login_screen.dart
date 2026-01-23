@@ -77,15 +77,20 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           // Mode connexion : naviguer vers vérification OTP
           // Normaliser le numéro de téléphone pour qu'il soit cohérent
           final phoneNumber = Formatters.normalizePhoneNumber(_phoneCtrl.text.trim());
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => OTPVerificationScreen(
-                phoneNumber: phoneNumber,
-                isLoginMode: true,
-              ),
-            ),
-          );
+          // Utiliser un délai pour s'assurer que le contexte est toujours valide
+          Future.microtask(() {
+            if (context.mounted) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => OTPVerificationScreen(
+                    phoneNumber: phoneNumber,
+                    isLoginMode: true,
+                  ),
+                ),
+              );
+            }
+          });
         }
         
         // Message d'échec
@@ -452,9 +457,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
         const SizedBox(height: 20),
 
-        // Message SMS
+        // Message Email
         const Text(
-          'Vous recevrez un code de vérification par SMS',
+          'Vous recevrez un code de vérification par email',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 12,

@@ -27,6 +27,8 @@ class QuoteBloc extends Bloc<QuoteEvent, QuoteState> {
       try {
         await _quoteRepository.createDraft(
           clientId: event.clientId,
+          clientName: event.clientName,
+          clientPhone: event.clientPhone,
           date: event.date,
           items: event.items,
           status: event.status,

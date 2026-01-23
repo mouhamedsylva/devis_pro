@@ -33,6 +33,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
   int _countdown = 300; // 5 minutes en secondes
   Timer? _timer;
   bool _canResend = false;
+  bool _disposed = false;
 
   @override
   void initState() {
@@ -42,47 +43,79 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
 
   @override
   void dispose() {
-    _otpController.dispose();
+    // Marquer comme disposé AVANT tout
+    _disposed = true;
+    
+    // Annuler le timer immédiatement
     _timer?.cancel();
+    _timer = null;
+    
+    // Disposer le controller de manière sécurisée
+    try {
+      _otpController.dispose();
+    } catch (e) {
+      // Ignorer les erreurs de disposal si déjà disposé
+      debugPrint('Controller already disposed: $e');
+    }
+    
     super.dispose();
   }
 
   void _startCountdown() {
+    if (_disposed) return;
+    
     _canResend = false;
     _countdown = 300;
     _timer?.cancel();
     
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_disposed || !mounted) {
+        timer.cancel();
+        return;
+      }
+      
       if (_countdown > 0) {
-        setState(() => _countdown--);
+        if (mounted && !_disposed) {
+          setState(() => _countdown--);
+        }
       } else {
-        setState(() => _canResend = true);
+        if (mounted && !_disposed) {
+          setState(() => _canResend = true);
+        }
         timer.cancel();
       }
     });
   }
 
   void _verifyOTP() {
-    if (_otpController.text.length == 6) {
-      if (widget.isLoginMode) {
-        // ✨ Mode connexion
-        context.read<AuthBloc>().add(
-              AuthLoginWithOTP(
-                phoneNumber: widget.phoneNumber,
-                otpCode: _otpController.text,
-              ),
-            );
-      } else {
-        // Mode inscription
-        context.read<AuthBloc>().add(
-              AuthRegistrationRequested(
-                phoneNumber: widget.phoneNumber,
-                email: widget.email!,
-                companyName: widget.companyName!,
-                otpCode: _otpController.text,
-              ),
-            );
+    if (_disposed || !mounted) return;
+    
+    try {
+      if (_otpController.text.length == 6) {
+        final otpCode = _otpController.text;
+        
+        if (widget.isLoginMode) {
+          // ✨ Mode connexion
+          context.read<AuthBloc>().add(
+                AuthLoginWithOTP(
+                  phoneNumber: widget.phoneNumber,
+                  otpCode: otpCode,
+                ),
+              );
+        } else {
+          // Mode inscription
+          context.read<AuthBloc>().add(
+                AuthRegistrationRequested(
+                  phoneNumber: widget.phoneNumber,
+                  email: widget.email!,
+                  companyName: widget.companyName!,
+                  otpCode: otpCode,
+                ),
+              );
+        }
       }
+    } catch (e) {
+      debugPrint('Error verifying OTP: $e');
     }
   }
 
@@ -121,7 +154,8 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
       listener: (context, state) {
         if (state.status == AuthStatus.authenticated) {
           // Succès - retour à l'écran principal
-          ScaffoldMessenger.of(context).showSnackBar(
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Row(
                 children: [
@@ -149,11 +183,15 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
               margin: const EdgeInsets.all(16),
             ),
           );
+          }
           
           // Retourner à l'écran principal (dashboard)
-          Navigator.of(context).popUntil((route) => route.isFirst);
+          if (mounted) {
+            Navigator.of(context).popUntil((route) => route.isFirst);
+          }
         } else if (state.status == AuthStatus.failure) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Row(
                 children: [
@@ -179,8 +217,10 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
               margin: const EdgeInsets.all(16),
             ),
           );
+          }
         } else if (state.status == AuthStatus.otpSent) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Row(
                 children: [
@@ -206,6 +246,8 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
               margin: const EdgeInsets.all(16),
             ),
           );
+          _startCountdown();
+          }
         }
       },
       child: Scaffold(

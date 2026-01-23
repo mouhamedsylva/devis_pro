@@ -9,7 +9,9 @@ abstract class QuoteRepository {
   Future<double> getMonthlyRevenue();
   Future<List<QuoteItem>> listItems(int quoteId);
   Future<Quote> createDraft({
-    required int clientId,
+    int? clientId,
+    String? clientName,
+    String? clientPhone,
     required DateTime date,
     required List<QuoteItemDraft> items,
     required String status,

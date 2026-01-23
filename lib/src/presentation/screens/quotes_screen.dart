@@ -5,6 +5,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/formatters.dart';
+import '../../domain/entities/client.dart';
 import '../../domain/entities/template.dart';
 import '../../domain/repositories/client_repository.dart';
 import '../../domain/repositories/company_repository.dart';
@@ -15,6 +16,7 @@ import '../blocs/template/template_bloc.dart';
 import '../blocs/template/template_event.dart';
 import '../services/quote_pdf_service.dart';
 import 'quote_editor_screen.dart';
+import 'templates_screen.dart';
 
 class QuotesScreen extends StatefulWidget {
   const QuotesScreen({super.key});
@@ -71,6 +73,15 @@ class _QuotesScreenState extends State<QuotesScreen> {
         ),
         actions: [
           IconButton(
+            tooltip: 'Modèles',
+            icon: const Icon(Icons.note_add_rounded),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const TemplatesScreen()),
+              );
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.filter_list),
             onPressed: () {
               _showFilterSortOptions(context);
@@ -83,8 +94,8 @@ class _QuotesScreenState extends State<QuotesScreen> {
       floatingActionButton: BlocBuilder<QuoteBloc, QuoteState>(
         builder: (context, state) {
           final quotes = state.quotes ?? const [];
-          // Masquer le FAB quand il n'y a pas de devis
-          if (quotes.isEmpty && state.status != QuoteStatus.loading) {
+          // Masquer le FAB quand il n'y a pas de devis (même pendant le chargement)
+          if (quotes.isEmpty) {
             return const SizedBox.shrink();
           }
           return Container(
@@ -759,17 +770,15 @@ class _QuotesScreenState extends State<QuotesScreen> {
     );
   }
 
-  Future<void> _exportPdf(BuildContext context, int quoteId, int clientId) async {
+  Future<void> _exportPdf(BuildContext context, int quoteId, int? clientId) async {
     final companyRepo = context.read<CompanyRepository>();
     final clientRepo = context.read<ClientRepository>();
     final quoteRepo = context.read<QuoteRepository>();
 
     final company = await companyRepo.getCompany();
-    final client = await clientRepo.findById(clientId);
-    if (client == null) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Client introuvable')));
-      return;
+    Client? client;
+    if (clientId != null) {
+      client = await clientRepo.findById(clientId);
     }
 
     final items = await quoteRepo.listItems(quoteId);
@@ -781,22 +790,23 @@ class _QuotesScreenState extends State<QuotesScreen> {
     await _pdf.share(pdfBytes: bytes, filename: filename);
   }
 
-  Future<void> _shareToWhatsApp(BuildContext context, int quoteId, int clientId) async {
+  Future<void> _shareToWhatsApp(BuildContext context, int quoteId, int? clientId) async {
     final companyRepo = context.read<CompanyRepository>();
     final clientRepo = context.read<ClientRepository>();
     final quoteRepo = context.read<QuoteRepository>();
 
     final company = await companyRepo.getCompany();
-    final client = await clientRepo.findById(clientId);
-    if (client == null) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Client introuvable'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
+    Client? client;
+    String? clientName;
+    
+    if (clientId != null) {
+      client = await clientRepo.findById(clientId);
+      clientName = client?.name;
+    } else {
+      // Utiliser clientName du quote si disponible
+      final quotes = await quoteRepo.list();
+      final quote = quotes.firstWhere((q) => q.id == quoteId);
+      clientName = quote.clientName;
     }
 
     final items = await quoteRepo.listItems(quoteId);
@@ -810,7 +820,7 @@ class _QuotesScreenState extends State<QuotesScreen> {
     await _pdf.shareToWhatsApp(
       pdfBytes: bytes,
       filename: filename,
-      clientName: client.name,
+      clientName: clientName,
     );
   }
 
@@ -975,7 +985,9 @@ class _QuotesScreenState extends State<QuotesScreen> {
             label: 'Voir',
             textColor: Colors.white,
             onPressed: () {
-              // TODO: Navigator vers TemplatesScreen
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const TemplatesScreen()),
+              );
             },
           ),
         ),

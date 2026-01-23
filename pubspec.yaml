@@ -53,6 +53,8 @@ dependencies:
   font_awesome_flutter: ^10.8.0
   signature: ^5.5.0
   image_cropper: ^8.0.2
+  flutter_contacts: ^1.1.7+1
+  sizer: ^2.0.15
 
 dev_dependencies:
   flutter_test:

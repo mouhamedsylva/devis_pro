@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../core/constants/app_colors.dart';
 import '../../domain/entities/client.dart';
 import '../blocs/clients/client_bloc.dart';
 import '../widgets/app_text_field.dart';
@@ -74,10 +75,38 @@ class _ClientsScreenState extends State<ClientsScreen> {
           if (state.clients.isEmpty && state.status != ClientStatus.loading) {
             return const SizedBox.shrink();
           }
-          return FloatingActionButton.extended(
-            onPressed: () => _openClientDialog(),
-            icon: const Icon(Icons.add),
-            label: const Text('Ajouter'),
+          return Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              gradient: const LinearGradient(
+                colors: [
+                  Color(0xFFFDB913),
+                  Color(0xFFFFD700),
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.yellow.withOpacity(0.4),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: FloatingActionButton.extended(
+              onPressed: () => _openClientDialog(),
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              icon: const Icon(Icons.add_rounded, color: Colors.white),
+              label: const Text(
+                'Nouveau Client',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
           );
         },
       ),

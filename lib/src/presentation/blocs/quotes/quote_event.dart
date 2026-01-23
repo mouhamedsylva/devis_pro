@@ -13,19 +13,23 @@ class QuoteListRequested extends QuoteEvent {
 
 class QuoteCreateRequested extends QuoteEvent {
   const QuoteCreateRequested({
-    required this.clientId,
+    this.clientId,
+    this.clientName,
+    this.clientPhone,
     required this.date,
     required this.items,
     required this.status,
   });
 
-  final int clientId;
+  final int? clientId; // Nullable : si null, utiliser clientName et clientPhone
+  final String? clientName; // Nom du client si pas de clientId
+  final String? clientPhone; // Téléphone du client si pas de clientId
   final DateTime date;
   final List<QuoteItemDraft> items;
   final String status;
 
   @override
-  List<Object?> get props => [clientId, date, items, status];
+  List<Object?> get props => [clientId, clientName, clientPhone, date, items, status];
 }
 
 class QuoteStatusUpdated extends QuoteEvent {

@@ -14,7 +14,7 @@ class DatabaseMobile implements DatabaseInterface {
   Database? _database;
 
   static const _dbName = 'devispro.db';
-  static const _dbVersion = 5; // ✨ Version 5 : ajout templates et template_items
+  static const _dbVersion = 6; // ✨ Version 6 : clientId nullable + clientName/clientPhone dans quotes
 
   factory DatabaseMobile() {
     _instance ??= DatabaseMobile._();
@@ -109,7 +109,9 @@ CREATE TABLE products (
 CREATE TABLE quotes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   quoteNumber TEXT NOT NULL UNIQUE,
-  clientId INTEGER NOT NULL,
+  clientId INTEGER,
+  clientName TEXT,
+  clientPhone TEXT,
   date TEXT NOT NULL,
   status TEXT NOT NULL,
   totalHT REAL NOT NULL,
@@ -254,6 +256,37 @@ CREATE TABLE template_items (
       await db.execute('CREATE INDEX idx_template_items_templateId ON template_items(templateId);');
       
       print('✅ Migration v4 → v5 réussie : ajout des tables templates');
+    }
+    if (oldVersion < 6) {
+      // Migration de v5 à v6 : rendre clientId nullable et ajouter clientName/clientPhone dans quotes
+      // SQLite ne supporte pas ALTER COLUMN, on doit recréer la table
+      await db.execute('''
+CREATE TABLE quotes_new (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  quoteNumber TEXT NOT NULL UNIQUE,
+  clientId INTEGER,
+  clientName TEXT,
+  clientPhone TEXT,
+  date TEXT NOT NULL,
+  status TEXT NOT NULL,
+  totalHT REAL NOT NULL,
+  totalVAT REAL NOT NULL,
+  totalTTC REAL NOT NULL,
+  FOREIGN KEY (clientId) REFERENCES clients(id) ON DELETE RESTRICT
+);
+''');
+      
+      // Copier les données existantes
+      await db.execute('''
+INSERT INTO quotes_new (id, quoteNumber, clientId, date, status, totalHT, totalVAT, totalTTC)
+SELECT id, quoteNumber, clientId, date, status, totalHT, totalVAT, totalTTC FROM quotes;
+''');
+      
+      // Supprimer l'ancienne table et renommer la nouvelle
+      await db.execute('DROP TABLE quotes;');
+      await db.execute('ALTER TABLE quotes_new RENAME TO quotes;');
+      
+      print('✅ Migration v5 → v6 réussie : clientId nullable + clientName/clientPhone dans quotes');
     }
   }
 

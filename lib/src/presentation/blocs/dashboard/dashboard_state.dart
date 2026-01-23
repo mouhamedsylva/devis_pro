@@ -1,5 +1,22 @@
 part of 'dashboard_bloc.dart';
 
+/// Représente une activité récente dans le dashboard.
+class RecentActivity {
+  final String title;
+  final String timeAgo;
+  final IconData icon;
+  final Color color;
+  final DateTime dateTime;
+
+  const RecentActivity({
+    required this.title,
+    required this.timeAgo,
+    required this.icon,
+    required this.color,
+    required this.dateTime,
+  });
+}
+
 abstract class DashboardState extends Equatable {
   const DashboardState();
 
@@ -17,6 +34,7 @@ class DashboardLoaded extends DashboardState {
   final int totalQuotes;
   final int pendingQuotes;
   final double monthlyRevenue;
+  final List<RecentActivity> recentActivities;
 
   const DashboardLoaded({
     required this.totalClients,
@@ -24,6 +42,7 @@ class DashboardLoaded extends DashboardState {
     required this.totalQuotes,
     required this.pendingQuotes,
     required this.monthlyRevenue,
+    required this.recentActivities,
   });
 
   @override
@@ -33,6 +52,7 @@ class DashboardLoaded extends DashboardState {
         totalQuotes,
         pendingQuotes,
         monthlyRevenue,
+        recentActivities,
       ];
 }
 
