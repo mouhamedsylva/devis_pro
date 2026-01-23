@@ -10,6 +10,7 @@ class Company extends Equatable {
     required this.logoPath,
     required this.currency,
     required this.vatRate,
+    this.signaturePath,
   });
 
   final int id;
@@ -19,8 +20,9 @@ class Company extends Equatable {
   final String? logoPath;
   final String currency; // FCFA (XOF/XAF label)
   final double vatRate; // ex: 0.18
+  final String? signaturePath; // Chemin vers l'image de signature
 
   @override
-  List<Object?> get props => [id, name, phone, address, logoPath, currency, vatRate];
+  List<Object?> get props => [id, name, phone, address, logoPath, currency, vatRate, signaturePath];
 }
 

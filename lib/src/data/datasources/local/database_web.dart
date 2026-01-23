@@ -12,7 +12,7 @@ class DatabaseWeb implements DatabaseInterface {
   Database? _database;
 
   static const _dbName = 'devispro';
-  static const _dbVersion = 2; // ✨ Version 2 : ajout email, companyName, isVerified + table OTP
+  static const _dbVersion = 5; // ✨ Version 5 : ajout templates et template_items
 
   factory DatabaseWeb() {
     _instance ??= DatabaseWeb._();
@@ -74,6 +74,18 @@ class DatabaseWeb implements DatabaseInterface {
       final itemsStore = db.createObjectStore('quote_items', keyPath: 'id', autoIncrement: true);
       itemsStore.createIndex('quoteId', 'quoteId', unique: false);
     }
+
+    // ✨ Table templates pour les modèles de devis
+    if (!db.objectStoreNames.contains('templates')) {
+      final templatesStore = db.createObjectStore('templates', keyPath: 'id', autoIncrement: true);
+      templatesStore.createIndex('category', 'category', unique: false);
+    }
+
+    // ✨ Table template_items pour les items des templates
+    if (!db.objectStoreNames.contains('template_items')) {
+      final templateItemsStore = db.createObjectStore('template_items', keyPath: 'id', autoIncrement: true);
+      templateItemsStore.createIndex('templateId', 'templateId', unique: false);
+    }
   }
 
   Future<void> _initializeDefaultData() async {
@@ -87,6 +99,7 @@ class DatabaseWeb implements DatabaseInterface {
         'logoPath': null,
         'currency': 'FCFA',
         'vatRate': 0.18,
+        'signaturePath': null,
       });
     }
   }

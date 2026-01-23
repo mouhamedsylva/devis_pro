@@ -11,6 +11,7 @@ class CompanyModel {
       logoPath: map['logoPath'] as String?,
       currency: (map['currency'] as String?) ?? 'FCFA',
       vatRate: (map['vatRate'] as num).toDouble(),
+      signaturePath: map['signaturePath'] as String?,
     );
   }
 
@@ -23,6 +24,7 @@ class CompanyModel {
       'logoPath': c.logoPath,
       'currency': c.currency,
       'vatRate': c.vatRate,
+      'signaturePath': c.signaturePath,
     };
   }
 }

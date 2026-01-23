@@ -14,16 +14,57 @@ class ProductsScreen extends StatefulWidget {
 }
 
 class _ProductsScreenState extends State<ProductsScreen> {
+  final TextEditingController _searchController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
     context.read<ProductBloc>().add(const ProductListRequested());
+    _searchController.addListener(() {
+      setState(() {}); // Pour mettre à jour l'icône clear
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Produits / Services')),
+      backgroundColor: const Color(0xFFF5F5F5),
+      appBar: AppBar(
+        title: TextField(
+          controller: _searchController,
+          decoration: InputDecoration(
+            hintText: 'Rechercher un produit...',
+            border: InputBorder.none,
+            filled: false,
+            suffixIcon: _searchController.text.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.clear, color: Colors.grey),
+                    onPressed: () {
+                      _searchController.clear();
+                      setState(() {});
+                    },
+                  )
+                : null,
+          ),
+          onChanged: (value) {
+            setState(() {}); // Rafraîchir la liste filtrée
+          },
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.filter_list),
+            onPressed: () {
+              _showFilterSortOptions(context);
+            },
+          ),
+        ],
+      ),
       floatingActionButton: BlocBuilder<ProductBloc, ProductState>(
         builder: (context, state) {
           final products = state.products ?? const <Product>[];
@@ -48,9 +89,21 @@ class _ProductsScreenState extends State<ProductsScreen> {
             return _buildLoadingSkeleton();
           }
           
-          final products = state.products ?? const <Product>[];
+          var products = state.products ?? const <Product>[];
+          
+          // Filtrer par recherche
+          final searchTerm = _searchController.text.toLowerCase();
+          if (searchTerm.isNotEmpty) {
+            products = products.where((p) => 
+              p.name.toLowerCase().contains(searchTerm)
+            ).toList();
+          }
+          
+          // Appliquer le tri
+          products = _applySorting(products);
+          
           if (products.isEmpty) {
-            return _buildEmptyState(context);
+            return _buildEmptyState(context, searchTerm);
           }
 
           return ListView.separated(
@@ -114,24 +167,266 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
     final saved = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: Text(existing == null ? 'Nouveau produit' : 'Modifier produit'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AppTextField(controller: nameCtrl, label: 'Nom'),
-              const SizedBox(height: 10),
-              AppTextField(controller: priceCtrl, label: 'Prix unitaire', keyboardType: TextInputType.number),
-              const SizedBox(height: 10),
-              AppTextField(controller: vatCtrl, label: 'TVA (%)', keyboardType: TextInputType.number),
-            ],
+      barrierDismissible: false,
+      builder: (_) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        elevation: 10,
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 500),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header avec gradient
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [
+                        Color(0xFFFDB913),
+                        Color(0xFFFFD700),
+                      ],
+                    ),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(20),
+                      topRight: Radius.circular(20),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.inventory_2_rounded,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              existing == null ? 'Nouveau produit' : 'Modifier produit',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              existing == null 
+                                  ? 'Ajoutez un produit ou service' 
+                                  : 'Modifiez les informations',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.9),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Contenu du formulaire
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Nom du produit
+                      _buildFieldLabel('Nom du produit ou service', Icons.label_rounded),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: nameCtrl,
+                        decoration: InputDecoration(
+                          hintText: 'Ex: Consultation, Installation...',
+                          prefixIcon: const Icon(Icons.inventory_2_outlined, size: 20),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Color(0xFFF9B000), width: 2),
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 20),
+                      
+                      // Prix unitaire
+                      _buildFieldLabel('Prix unitaire (FCFA)', Icons.payments_rounded),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: priceCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: InputDecoration(
+                          hintText: '0.00',
+                          prefixIcon: const Icon(Icons.attach_money, size: 20),
+                          suffixText: 'FCFA',
+                          suffixStyle: TextStyle(
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w600,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Color(0xFFF9B000), width: 2),
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 20),
+                      
+                      // TVA
+                      _buildFieldLabel('Taux de TVA (%)', Icons.percent_rounded),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: vatCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: InputDecoration(
+                          hintText: '18',
+                          prefixIcon: const Icon(Icons.calculate_outlined, size: 20),
+                          suffixText: '%',
+                          suffixStyle: TextStyle(
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w600,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Color(0xFFF9B000), width: 2),
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 8),
+                      
+                      // Info helper
+                      Row(
+                        children: [
+                          Icon(Icons.info_outline, size: 14, color: Colors.grey[600]),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Le taux de TVA standard au Sénégal est de 18%',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Actions
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(20),
+                      bottomRight: Radius.circular(20),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      // Bouton Annuler
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          'Annuler',
+                          style: TextStyle(
+                            color: Colors.grey[700],
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      
+                      const SizedBox(width: 12),
+                      
+                      // Bouton Enregistrer
+                      ElevatedButton.icon(
+                        onPressed: () => Navigator.pop(context, true),
+                        icon: const Icon(Icons.check_circle_rounded, size: 20),
+                        label: const Text(
+                          'Enregistrer',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFF9B000),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Enregistrer')),
-        ],
       ),
     );
 
@@ -153,68 +448,174 @@ class _ProductsScreenState extends State<ProductsScreen> {
     }
   }
 
-  Widget _buildEmptyState(BuildContext context) {
+  void _showFilterSortOptions(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext bc) {
+        return Wrap(
+          children: <Widget>[
+            ListTile(
+              title: const Text('Trier par'),
+              tileColor: Theme.of(context).primaryColor.withOpacity(0.1),
+            ),
+            ListTile(
+              leading: const Icon(Icons.sort_by_alpha),
+              title: const Text('Nom (A-Z)'),
+              onTap: () {
+                Navigator.pop(context);
+                _sortProducts('name_asc');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.sort_by_alpha),
+              title: const Text('Nom (Z-A)'),
+              onTap: () {
+                Navigator.pop(context);
+                _sortProducts('name_desc');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.arrow_upward),
+              title: const Text('Prix croissant'),
+              onTap: () {
+                Navigator.pop(context);
+                _sortProducts('price_asc');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.arrow_downward),
+              title: const Text('Prix décroissant'),
+              onTap: () {
+                Navigator.pop(context);
+                _sortProducts('price_desc');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.percent),
+              title: const Text('TVA croissante'),
+              onTap: () {
+                Navigator.pop(context);
+                _sortProducts('vat_asc');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.percent),
+              title: const Text('TVA décroissante'),
+              onTap: () {
+                Navigator.pop(context);
+                _sortProducts('vat_desc');
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  String _currentSort = 'name_asc';
+
+  void _sortProducts(String sortType) {
+    setState(() {
+      _currentSort = sortType;
+    });
+  }
+
+  List<Product> _applySorting(List<Product> products) {
+    final sorted = List<Product>.from(products);
+    switch (_currentSort) {
+      case 'name_asc':
+        sorted.sort((a, b) => a.name.compareTo(b.name));
+        break;
+      case 'name_desc':
+        sorted.sort((a, b) => b.name.compareTo(a.name));
+        break;
+      case 'price_asc':
+        sorted.sort((a, b) => a.unitPrice.compareTo(b.unitPrice));
+        break;
+      case 'price_desc':
+        sorted.sort((a, b) => b.unitPrice.compareTo(a.unitPrice));
+        break;
+      case 'vat_asc':
+        sorted.sort((a, b) => a.vatRate.compareTo(b.vatRate));
+        break;
+      case 'vat_desc':
+        sorted.sort((a, b) => b.vatRate.compareTo(a.vatRate));
+        break;
+    }
+    return sorted;
+  }
+
+  Widget _buildFieldLabel(String label, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: const Color(0xFF1A1A1A)),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF1A1A1A),
+            letterSpacing: 0.3,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context, String searchTerm) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Logo/icône grande taille
+            // Logo DEVISPRO (même style que dashboard)
             Container(
               width: 120,
               height: 120,
               decoration: BoxDecoration(
-                color: Colors.grey[100],
                 shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  colors: [
+                    Color(0xFFFDB913),
+                    Color(0xFFFFD700),
+                  ],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFF9B000).withOpacity(0.3),
+                    blurRadius: 20,
+                    spreadRadius: 5,
+                  ),
+                ],
               ),
-              child: Icon(
-                Icons.inventory_2_outlined,
-                size: 64,
-                color: Colors.grey[400],
+              child: const Icon(
+                Icons.description,
+                color: Colors.white,
+                size: 60,
               ),
             ),
             const SizedBox(height: 32),
             // Texte principal
-            const Text(
-              'Aucun produit',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 12),
-            // Texte secondaire
             Text(
-              'Commencez par ajouter votre premier produit ou service',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[600],
-                height: 1.5,
+              searchTerm.isEmpty 
+                  ? 'Aucun produit enregistré.' 
+                  : 'Aucun produit trouvé pour "$searchTerm".',
+              style: const TextStyle(
+                fontSize: 18,
+                color: Colors.grey,
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 40),
+            const SizedBox(height: 10),
             // Bouton centré avec style moderne
-            ElevatedButton.icon(
-              onPressed: () => _openProductDialog(),
-              icon: const Icon(Icons.add_circle_outline, size: 24),
-              label: const Text(
-                'Ajouter un produit',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
+            if (searchTerm.isEmpty)
+              ElevatedButton.icon(
+                onPressed: () => _openProductDialog(),
+                icon: const Icon(Icons.add),
+                label: const Text('Ajouter un produit'),
               ),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
           ],
         ),
       ),

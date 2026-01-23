@@ -2,7 +2,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:signature/signature.dart';
 import 'dart:io';
+import 'dart:typed_data';
+import 'package:path_provider/path_provider.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../domain/entities/company.dart';
@@ -24,6 +28,7 @@ class _CompanyScreenState extends State<CompanyScreen> {
   final _vatCtrl = TextEditingController(text: '18');
   
   String? _selectedLogoPath;
+  String? _selectedSignaturePath;
   final ImagePicker _picker = ImagePicker();
 
   @override
@@ -44,16 +49,82 @@ class _CompanyScreenState extends State<CompanyScreen> {
 
   Future<void> _pickLogo() async {
     try {
+      // Étape 1 : Sélectionner l'image
       final XFile? image = await _picker.pickImage(
         source: ImageSource.gallery,
-        maxWidth: 512,
-        maxHeight: 512,
+        imageQuality: 100, // Qualité max avant cropping
+      );
+      
+      if (image != null) {
+        // Étape 2 : Rogner l'image
+        final CroppedFile? croppedFile = await ImageCropper().cropImage(
+          sourcePath: image.path,
+          aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1), // Format carré pour logo
+          uiSettings: [
+            AndroidUiSettings(
+              toolbarTitle: 'Rogner le logo',
+              toolbarColor: AppColors.yellow,
+              toolbarWidgetColor: Colors.white,
+              initAspectRatio: CropAspectRatioPreset.square,
+              lockAspectRatio: true,
+              hideBottomControls: false,
+              cropStyle: CropStyle.circle, // Aperçu circulaire
+              activeControlsWidgetColor: AppColors.yellow,
+            ),
+            IOSUiSettings(
+              title: 'Rogner le logo',
+              aspectRatioLockEnabled: true,
+              resetAspectRatioEnabled: false,
+              aspectRatioPickerButtonHidden: true,
+              rotateButtonsHidden: false,
+              cropStyle: CropStyle.circle,
+            ),
+            WebUiSettings(
+              context: context,
+              presentStyle: WebPresentStyle.dialog,
+            ),
+          ],
+          compressQuality: 85,
+          maxWidth: 512,
+          maxHeight: 512,
+        );
+        
+        if (croppedFile != null) {
+          setState(() {
+            _selectedLogoPath = croppedFile.path;
+          });
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Logo mis à jour'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur lors de la sélection de l\'image: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _pickSignature() async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 800,
+        maxHeight: 400,
         imageQuality: 85,
       );
       
       if (image != null) {
         setState(() {
-          _selectedLogoPath = image.path;
+          _selectedSignaturePath = image.path;
         });
       }
     } catch (e) {
@@ -61,6 +132,184 @@ class _CompanyScreenState extends State<CompanyScreen> {
         SnackBar(content: Text('Erreur lors de la sélection de l\'image: $e')),
       );
     }
+  }
+
+  Future<void> _drawSignature() async {
+    final signatureController = SignatureController(
+      penStrokeWidth: 3,
+      penColor: Colors.black,
+      exportBackgroundColor: Colors.white,
+    );
+
+    final result = await showDialog<Uint8List?>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Dessinez votre signature'),
+          content: SizedBox(
+            width: 400,
+            height: 200,
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey[300]!),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Signature(
+                controller: signatureController,
+                backgroundColor: Colors.white,
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                signatureController.clear();
+              },
+              child: const Text('Effacer'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(null),
+              child: const Text('Annuler'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (signatureController.isNotEmpty) {
+                  final signature = await signatureController.toPngBytes();
+                  Navigator.of(context).pop(signature);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Veuillez dessiner une signature')),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.yellow,
+              ),
+              child: const Text('Enregistrer'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result != null) {
+      // Sauvegarder l'image de la signature
+      try {
+        final directory = await getApplicationDocumentsDirectory();
+        final filePath = '${directory.path}/signature_${DateTime.now().millisecondsSinceEpoch}.png';
+        final file = File(filePath);
+        await file.writeAsBytes(result);
+        
+        setState(() {
+          _selectedSignaturePath = filePath;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Signature enregistrée'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur lors de la sauvegarde: $e')),
+        );
+      }
+    }
+
+    signatureController.dispose();
+  }
+
+  Future<void> _showSignatureOptions() async {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Ajouter une signature',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.yellow.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(Icons.draw, color: AppColors.yellow),
+                  ),
+                  title: const Text('Dessiner la signature'),
+                  subtitle: const Text('Utilisez votre doigt ou stylet'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _drawSignature();
+                  },
+                ),
+                const SizedBox(height: 10),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.image, color: Colors.blue),
+                  ),
+                  title: const Text('Importer une image'),
+                  subtitle: const Text('Sélectionner depuis la galerie'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickSignature();
+                  },
+                ),
+                if (_selectedSignaturePath != null) ...[
+                  const SizedBox(height: 10),
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.delete, color: Colors.red),
+                    ),
+                    title: const Text('Supprimer la signature'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      setState(() {
+                        _selectedSignaturePath = null;
+                      });
+                    },
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -95,6 +344,7 @@ class _CompanyScreenState extends State<CompanyScreen> {
             _currencyCtrl.text = company.currency;
             _vatCtrl.text = (company.vatRate * 100).toStringAsFixed(0);
             _selectedLogoPath = company.logoPath;
+            _selectedSignaturePath = company.signaturePath;
           }
           
           return SingleChildScrollView(
@@ -161,6 +411,11 @@ class _CompanyScreenState extends State<CompanyScreen> {
                     ),
                   ],
                 ),
+                
+                const SizedBox(height: 16),
+                
+                // Section Signature
+                _buildSignatureSection(company),
                 
                 const SizedBox(height: 32),
                 
@@ -378,6 +633,179 @@ class _CompanyScreenState extends State<CompanyScreen> {
     );
   }
 
+  Widget _buildSignatureSection(Company? company) {
+    final signaturePath = _selectedSignaturePath ?? company?.signaturePath;
+    
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // En-tête de section
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.yellow.withOpacity(0.1),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.yellow,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.edit,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  'Signature de l\'entreprise',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Contenu
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                // Preview de la signature
+                GestureDetector(
+                  onTap: _showSignatureOptions,
+                  child: Container(
+                    width: double.infinity,
+                    height: 150,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Colors.grey[300]!,
+                        width: 2,
+                        style: BorderStyle.solid,
+                      ),
+                    ),
+                    child: signaturePath != null && signaturePath.isNotEmpty
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.file(
+                              File(signaturePath),
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) => _buildSignaturePlaceholder(),
+                            ),
+                          )
+                        : _buildSignaturePlaceholder(),
+                  ),
+                ),
+                
+                const SizedBox(height: 12),
+                
+                // Bouton pour ajouter/modifier
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _showSignatureOptions,
+                    icon: Icon(
+                      signaturePath != null ? Icons.edit : Icons.add,
+                      size: 20,
+                    ),
+                    label: Text(
+                      signaturePath != null 
+                          ? 'Modifier la signature' 
+                          : 'Ajouter une signature',
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.yellow,
+                      side: BorderSide(color: AppColors.yellow, width: 2),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+                
+                const SizedBox(height: 8),
+                
+                // Info text
+                Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 14, color: Colors.grey[600]),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'La signature apparaîtra sur vos documents',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSignaturePlaceholder() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          Icons.draw,
+          size: 48,
+          color: Colors.grey[400],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Aucune signature',
+          style: TextStyle(
+            color: Colors.grey[400],
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Touchez pour ajouter',
+          style: TextStyle(
+            color: Colors.grey[400],
+            fontSize: 12,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildSaveButton(Company? company) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -407,6 +835,7 @@ class _CompanyScreenState extends State<CompanyScreen> {
                     logoPath: _selectedLogoPath ?? company.logoPath,
                     currency: _currencyCtrl.text.trim().isEmpty ? 'FCFA' : _currencyCtrl.text.trim(),
                     vatRate: vatPercent / 100.0,
+                    signaturePath: _selectedSignaturePath ?? company.signaturePath,
                   );
                   context.read<CompanyBloc>().add(CompanyUpdated(updated));
                   

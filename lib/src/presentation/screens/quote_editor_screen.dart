@@ -8,10 +8,15 @@ import '../../core/constants/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../domain/entities/client.dart';
 import '../../domain/entities/product.dart';
+import '../../domain/entities/template.dart';
 import '../../domain/repositories/client_repository.dart';
 import '../../domain/repositories/product_repository.dart';
 import '../../domain/repositories/quote_repository.dart';
+import '../../domain/repositories/template_repository.dart';
 import '../blocs/quotes/quote_bloc.dart';
+import '../blocs/template/template_bloc.dart';
+import '../blocs/template/template_event.dart';
+import '../blocs/template/template_state.dart';
 
 class QuoteEditorScreen extends StatefulWidget {
   const QuoteEditorScreen({super.key});
@@ -61,11 +66,17 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
         elevation: 0,
         centerTitle: true,
         actions: [
-          if (!_loading && _clients.isNotEmpty && _products.isNotEmpty)
+          if (!_loading && _clients.isNotEmpty && _products.isNotEmpty) ...[
+            IconButton(
+              icon: const Icon(Icons.note_add),
+              tooltip: 'Utiliser un modèle',
+              onPressed: () => _showTemplatesDialog(context),
+            ),
             IconButton(
               icon: const Icon(Icons.info_outline),
               onPressed: () => _showHelp(context),
             ),
+          ],
         ],
       ),
       body: _loading
@@ -753,6 +764,244 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
     }
   }
 
+  void _showTemplatesDialog(BuildContext context) {
+    // Charger les templates
+    context.read<TemplateBloc>().add(const TemplateLoadAll());
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (modalContext) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          builder: (context, scrollController) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Column(
+                children: [
+                  // Handle de drag
+                  Container(
+                    margin: const EdgeInsets.only(top: 12, bottom: 8),
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  // Header
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+                    child: Row(
+                      children: [
+                        Icon(Icons.note_add, color: AppColors.yellow, size: 28),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'Choisir un modèle',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(modalContext),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  // Liste des templates
+                  Expanded(
+                    child: BlocBuilder<TemplateBloc, TemplateState>(
+                      builder: (context, state) {
+                        if (state is TemplateLoading) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+
+                        if (state is TemplateListLoaded) {
+                          if (state.templates.isEmpty) {
+                            return Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.note_add_outlined,
+                                      size: 64, color: Colors.grey[400]),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'Aucun modèle disponible',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+
+                          return ListView.separated(
+                            controller: scrollController,
+                            padding: const EdgeInsets.all(24),
+                            itemCount: state.templates.length,
+                            separatorBuilder: (context, index) =>
+                                const SizedBox(height: 12),
+                            itemBuilder: (context, index) {
+                              final template = state.templates[index];
+                              return _buildTemplateListItem(
+                                  modalContext, template);
+                            },
+                          );
+                        }
+
+                        return const Center(child: Text('Erreur de chargement'));
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildTemplateListItem(BuildContext modalContext, QuoteTemplate template) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () {
+          Navigator.pop(modalContext);
+          _loadTemplateData(template);
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.yellow.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  template.isCustom ? Icons.person : Icons.star,
+                  color: AppColors.yellow,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      template.name,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      template.description,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey[600],
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _getCategoryColor(template.category).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: _getCategoryColor(template.category),
+                    width: 1.5,
+                  ),
+                ),
+                child: Text(
+                  template.category,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: _getCategoryColor(template.category),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _getCategoryColor(String category) {
+    switch (category) {
+      case 'BTP':
+        return Colors.orange;
+      case 'IT':
+        return Colors.blue;
+      case 'Consulting':
+        return Colors.purple;
+      case 'Commerce':
+        return Colors.green;
+      case 'Service':
+        return Colors.teal;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Future<void> _loadTemplateData(QuoteTemplate template) async {
+    // Charger les items du template
+    final templateRepo = context.read<TemplateRepository>();
+    final items = await templateRepo.getTemplateItems(template.id);
+
+    if (!mounted) return;
+
+    // Pré-remplir les lignes du devis
+    setState(() {
+      _lines.clear();
+      for (final item in items) {
+        _lines.add(_Line(
+          name: item.productName,
+          unitPrice: item.unitPrice,
+          vatRate: item.vatRate,
+          quantity: item.quantity.toDouble(),
+        ));
+      }
+    });
+
+    // Afficher un message de confirmation
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Modèle "${template.name}" chargé avec ${items.length} article(s)'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
   void _showHelp(BuildContext context) {
     showDialog(
       context: context,
@@ -781,6 +1030,11 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
             Text('3. Glissez vers la gauche pour supprimer un article'),
             SizedBox(height: 8),
             Text('4. Validez pour créer le devis'),
+            SizedBox(height: 16),
+            Text(
+              '💡 Astuce : Utilisez un modèle pour gagner du temps !',
+              style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.yellow),
+            ),
           ],
         ),
         actions: [

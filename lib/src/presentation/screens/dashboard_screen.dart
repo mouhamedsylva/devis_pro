@@ -17,6 +17,7 @@ import 'clients_screen.dart';
 import 'company_screen.dart';
 import 'products_screen.dart';
 import 'quotes_screen.dart';
+import 'templates_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -745,6 +746,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   onTap: () => _onItemTapped(3), // Aller à l'onglet Entreprise
                 ),
               ),
+            ],
+          ),
+          
+          const SizedBox(height: 12),
+          
+          Row(
+            children: [
+              Expanded(
+                child: _buildQuickNavCard(
+                  icon: Icons.note_add_rounded,
+                  label: 'Modèles',
+                  color: const Color(0xFF9C27B0),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const TemplatesScreen()),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(child: SizedBox()), // Placeholder pour alignement
             ],
           ),
         ],

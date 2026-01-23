@@ -14,7 +14,7 @@ class DatabaseMobile implements DatabaseInterface {
   Database? _database;
 
   static const _dbName = 'devispro.db';
-  static const _dbVersion = 3; // ✨ Version 3 : ajout createdAt à clients
+  static const _dbVersion = 5; // ✨ Version 5 : ajout templates et template_items
 
   factory DatabaseMobile() {
     _instance ??= DatabaseMobile._();
@@ -81,7 +81,8 @@ CREATE TABLE company (
   address TEXT NOT NULL,
   logoPath TEXT,
   currency TEXT NOT NULL,
-  vatRate REAL NOT NULL
+  vatRate REAL NOT NULL,
+  signaturePath TEXT
 );
 ''');
 
@@ -131,6 +132,46 @@ CREATE TABLE quote_items (
 );
 ''');
 
+    // ✨ Table templates pour les modèles de devis
+    await db.execute('''
+CREATE TABLE templates (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  description TEXT NOT NULL,
+  category TEXT NOT NULL,
+  isCustom INTEGER NOT NULL DEFAULT 0,
+  notes TEXT,
+  validityDays INTEGER,
+  termsAndConditions TEXT,
+  createdAt TEXT NOT NULL
+);
+''');
+
+    // Index pour recherche rapide par catégorie
+    await db.execute('''
+CREATE INDEX idx_templates_category ON templates(category);
+''');
+
+    // ✨ Table template_items pour les items des templates
+    await db.execute('''
+CREATE TABLE template_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  templateId INTEGER NOT NULL,
+  productName TEXT NOT NULL,
+  description TEXT NOT NULL,
+  quantity INTEGER NOT NULL,
+  unitPrice REAL NOT NULL,
+  vatRate REAL NOT NULL,
+  displayOrder INTEGER NOT NULL,
+  FOREIGN KEY (templateId) REFERENCES templates(id) ON DELETE CASCADE
+);
+''');
+
+    // Index pour recherche rapide par template
+    await db.execute('''
+CREATE INDEX idx_template_items_templateId ON template_items(templateId);
+''');
+
     // Valeurs par défaut
     await db.insert('company', {
       'name': 'Mon entreprise',
@@ -139,6 +180,7 @@ CREATE TABLE quote_items (
       'logoPath': null,
       'currency': 'FCFA',
       'vatRate': 0.18,
+      'signaturePath': null,
     });
   }
 
@@ -171,6 +213,47 @@ CREATE TABLE otp_codes (
       // Migration de v2 à v3 : ajout de la colonne createdAt à la table clients
       await db.execute('ALTER TABLE clients ADD COLUMN createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP');
       print('✅ Migration v2 → v3 réussie : ajout de createdAt à clients');
+    }
+    if (oldVersion < 4) {
+      // Migration de v3 à v4 : ajout de la colonne signaturePath à la table company
+      await db.execute('ALTER TABLE company ADD COLUMN signaturePath TEXT');
+      print('✅ Migration v3 → v4 réussie : ajout de signaturePath à company');
+    }
+    if (oldVersion < 5) {
+      // Migration de v4 à v5 : ajout des tables templates et template_items
+      await db.execute('''
+CREATE TABLE templates (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  description TEXT NOT NULL,
+  category TEXT NOT NULL,
+  isCustom INTEGER NOT NULL DEFAULT 0,
+  notes TEXT,
+  validityDays INTEGER,
+  termsAndConditions TEXT,
+  createdAt TEXT NOT NULL
+);
+''');
+      
+      await db.execute('CREATE INDEX idx_templates_category ON templates(category);');
+      
+      await db.execute('''
+CREATE TABLE template_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  templateId INTEGER NOT NULL,
+  productName TEXT NOT NULL,
+  description TEXT NOT NULL,
+  quantity INTEGER NOT NULL,
+  unitPrice REAL NOT NULL,
+  vatRate REAL NOT NULL,
+  displayOrder INTEGER NOT NULL,
+  FOREIGN KEY (templateId) REFERENCES templates(id) ON DELETE CASCADE
+);
+''');
+      
+      await db.execute('CREATE INDEX idx_template_items_templateId ON template_items(templateId);');
+      
+      print('✅ Migration v4 → v5 réussie : ajout des tables templates');
     }
   }
 

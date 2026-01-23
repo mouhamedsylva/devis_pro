@@ -2,6 +2,7 @@
 ///
 /// - `pdf` construit le document
 /// - `printing` permet la prévisualisation/partage (WhatsApp via share sheet)
+/// - `share_plus` pour partager vers WhatsApp et autres apps
 /// - `path_provider` pour sauvegarder localement.
 import 'dart:typed_data';
 import 'dart:io';
@@ -10,6 +11,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../core/utils/formatters.dart';
 import '../../domain/entities/client.dart';
@@ -116,6 +118,30 @@ class QuotePdfService {
 
   Future<void> share({required Uint8List pdfBytes, required String filename}) async {
     await Printing.sharePdf(bytes: pdfBytes, filename: filename);
+  }
+
+  /// Partage le PDF via le share sheet (incluant WhatsApp)
+  Future<void> shareToWhatsApp({
+    required Uint8List pdfBytes,
+    required String filename,
+    String? clientName,
+  }) async {
+    // Sauvegarder temporairement le fichier
+    final tempDir = await getTemporaryDirectory();
+    final file = File('${tempDir.path}/$filename');
+    await file.writeAsBytes(pdfBytes, flush: true);
+
+    // Message par défaut pour WhatsApp
+    final text = clientName != null
+        ? 'Bonjour $clientName, voici votre devis : $filename'
+        : 'Voici votre devis : $filename';
+
+    // Partager via le share sheet (WhatsApp apparaîtra dans les options)
+    await Share.shareXFiles(
+      [XFile(file.path)],
+      text: text,
+      subject: 'Devis - $filename',
+    );
   }
 }
 

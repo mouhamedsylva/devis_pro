@@ -13,12 +13,14 @@ import 'src/data/repositories/company_repository_impl.dart';
 import 'src/data/repositories/otp_repository_impl.dart';
 import 'src/data/repositories/product_repository_impl.dart';
 import 'src/data/repositories/quote_repository_impl.dart';
+import 'src/data/repositories/template_repository_impl.dart';
 import 'src/data/repositories/user_repository_impl.dart';
 import 'src/domain/repositories/client_repository.dart';
 import 'src/domain/repositories/company_repository.dart';
 import 'src/domain/repositories/otp_repository.dart';
 import 'src/domain/repositories/product_repository.dart';
 import 'src/domain/repositories/quote_repository.dart';
+import 'src/domain/repositories/template_repository.dart';
 import 'src/domain/repositories/user_repository.dart';
 import 'src/presentation/blocs/auth/auth_bloc.dart';
 import 'src/presentation/blocs/clients/client_bloc.dart';
@@ -26,6 +28,8 @@ import 'src/presentation/blocs/company/company_bloc.dart';
 import 'src/presentation/blocs/products/product_bloc.dart';
 import 'src/presentation/blocs/quotes/quote_bloc.dart';
 import 'src/presentation/blocs/dashboard/dashboard_bloc.dart';
+import 'src/presentation/blocs/template/template_bloc.dart';
+import 'src/presentation/blocs/template/template_event.dart';
 import 'src/presentation/screens/auth_gate.dart';
 
 Future<void> main() async {
@@ -58,6 +62,7 @@ class DevisProApp extends StatelessWidget {
     final clientRepository = ClientRepositoryImpl(db);
     final productRepository = ProductRepositoryImpl(db);
     final quoteRepository = QuoteRepositoryImpl(db);
+    final templateRepository = TemplateRepositoryImpl(db);
 
     return MultiRepositoryProvider(
       providers: [
@@ -67,6 +72,7 @@ class DevisProApp extends StatelessWidget {
         RepositoryProvider<ClientRepository>.value(value: clientRepository),
         RepositoryProvider<ProductRepository>.value(value: productRepository),
         RepositoryProvider<QuoteRepository>.value(value: quoteRepository),
+        RepositoryProvider<TemplateRepository>.value(value: templateRepository),
       ],
       child: MultiBlocProvider(
         providers: [
@@ -94,6 +100,10 @@ class DevisProApp extends StatelessWidget {
               productRepository: productRepository,
               quoteRepository: quoteRepository,
             ),
+          ),
+          BlocProvider(
+            create: (_) => TemplateBloc(templateRepository)
+              ..add(const TemplateInitializePredefined()),
           ),
         ],
         child: MaterialApp(

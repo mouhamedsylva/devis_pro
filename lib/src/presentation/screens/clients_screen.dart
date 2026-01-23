@@ -34,6 +34,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
         title: BlocBuilder<ClientBloc, ClientState>(
           builder: (context, state) {
@@ -61,12 +62,6 @@ class _ClientsScreenState extends State<ClientsScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.filter_list),
-            onPressed: () {
-              _showFilterSortOptions(context);
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.sort),
             onPressed: () {
               _showFilterSortOptions(context);
             },
@@ -306,10 +301,31 @@ class _ClientsScreenState extends State<ClientsScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Image.asset(
-            'assets/images/logo2.png', // Replace with your actual empty state image
-            height: 120,
+          // Logo DEVISPRO (même style que dashboard)
+          Container(
             width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const LinearGradient(
+                colors: [
+                  Color(0xFFFDB913),
+                  Color(0xFFFFD700),
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFF9B000).withOpacity(0.3),
+                  blurRadius: 20,
+                  spreadRadius: 5,
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.description,
+              color: Colors.white,
+              size: 60,
+            ),
           ),
           const SizedBox(height: 20),
           Text(
