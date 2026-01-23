@@ -27,8 +27,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
       floatingActionButton: BlocBuilder<ProductBloc, ProductState>(
         builder: (context, state) {
           final products = state.products ?? const <Product>[];
-          // Masquer le FAB quand il n'y a pas de produits (empty state)
-          if (products.isEmpty && state.status != ProductStatus.loading) {
+          // Masquer le FAB quand il n'y a pas de produits (le bouton est dans l'empty state)
+          if (products.isEmpty) {
             return const SizedBox.shrink();
           }
           return FloatingActionButton.extended(
@@ -155,27 +155,68 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   Widget _buildEmptyState(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.inventory_2_outlined,
-            size: 120,
-            color: Colors.grey[300],
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'Aucun produit enregistré.',
-            style: TextStyle(fontSize: 18, color: Colors.grey),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 10),
-          ElevatedButton.icon(
-            onPressed: () => _openProductDialog(),
-            icon: const Icon(Icons.add),
-            label: const Text('Ajouter un produit'),
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Logo/icône grande taille
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.inventory_2_outlined,
+                size: 64,
+                color: Colors.grey[400],
+              ),
+            ),
+            const SizedBox(height: 32),
+            // Texte principal
+            const Text(
+              'Aucun produit',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            // Texte secondaire
+            Text(
+              'Commencez par ajouter votre premier produit ou service',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 40),
+            // Bouton centré avec style moderne
+            ElevatedButton.icon(
+              onPressed: () => _openProductDialog(),
+              icon: const Icon(Icons.add_circle_outline, size: 24),
+              label: const Text(
+                'Ajouter un produit',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
