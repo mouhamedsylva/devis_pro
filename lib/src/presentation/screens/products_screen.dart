@@ -24,10 +24,19 @@ class _ProductsScreenState extends State<ProductsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Produits / Services')),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openProductDialog(),
-        icon: const Icon(Icons.add),
-        label: const Text('Ajouter'),
+      floatingActionButton: BlocBuilder<ProductBloc, ProductState>(
+        builder: (context, state) {
+          final products = state.products ?? const <Product>[];
+          // Masquer le FAB quand il n'y a pas de produits (empty state)
+          if (products.isEmpty && state.status != ProductStatus.loading) {
+            return const SizedBox.shrink();
+          }
+          return FloatingActionButton.extended(
+            onPressed: () => _openProductDialog(),
+            icon: const Icon(Icons.add),
+            label: const Text('Ajouter'),
+          );
+        },
       ),
       body: BlocConsumer<ProductBloc, ProductState>(
         listenWhen: (p, c) => c.status == ProductStatus.failure && c.message != null,
@@ -35,9 +44,14 @@ class _ProductsScreenState extends State<ProductsScreen> {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message!)));
         },
         builder: (context, state) {
-          if (state.status == ProductStatus.loading) return const Center(child: CircularProgressIndicator());
+          if (state.status == ProductStatus.loading) {
+            return _buildLoadingSkeleton();
+          }
+          
           final products = state.products ?? const <Product>[];
-          if (products.isEmpty) return const Center(child: Text('Aucun produit. Ajoutez votre premier produit.'));
+          if (products.isEmpty) {
+            return _buildEmptyState(context);
+          }
 
           return ListView.separated(
             padding: const EdgeInsets.all(12),
@@ -45,16 +59,25 @@ class _ProductsScreenState extends State<ProductsScreen> {
             separatorBuilder: (_, __) => const SizedBox(height: 8),
             itemBuilder: (context, i) {
               final p = products[i];
-              return ListTile(
-                tileColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.w800)),
-                subtitle: Text('PU: ${p.unitPrice} | TVA: ${(p.vatRate * 100).toStringAsFixed(0)}%'),
-                trailing: IconButton(
-                  icon: const Icon(Icons.delete_outline),
-                  onPressed: () => _confirmDelete(p),
+              return Dismissible(
+                key: ValueKey(p.id),
+                direction: DismissDirection.endToStart,
+                background: Container(
+                  color: Colors.red,
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: const Icon(Icons.delete, color: Colors.white),
                 ),
-                onTap: () => _openProductDialog(existing: p),
+                confirmDismiss: (direction) async {
+                  return await _confirmDelete(p);
+                },
+                child: ListTile(
+                  tileColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.w800)),
+                  subtitle: Text('PU: ${p.unitPrice.toStringAsFixed(2)} € | TVA: ${(p.vatRate * 100).toStringAsFixed(0)}%'),
+                  onTap: () => _openProductDialog(existing: p),
+                ),
               );
             },
           );
@@ -63,7 +86,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     );
   }
 
-  Future<void> _confirmDelete(Product p) async {
+  Future<bool?> _confirmDelete(Product p) async {
     final bloc = context.read<ProductBloc>();
     final ok = await showDialog<bool>(
       context: context,
@@ -78,7 +101,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
     );
     if (ok == true) {
       bloc.add(ProductDeleteRequested(p.id));
+      return true; // Indicate that the item was dismissed
     }
+    return false; // Indicate that the item was not dismissed
   }
 
   Future<void> _openProductDialog({Product? existing}) async {
@@ -127,5 +152,48 @@ class _ProductsScreenState extends State<ProductsScreen> {
       }
     }
   }
-}
 
+  Widget _buildEmptyState(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.inventory_2_outlined,
+            size: 120,
+            color: Colors.grey[300],
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'Aucun produit enregistré.',
+            style: TextStyle(fontSize: 18, color: Colors.grey),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 10),
+          ElevatedButton.icon(
+            onPressed: () => _openProductDialog(),
+            icon: const Icon(Icons.add),
+            label: const Text('Ajouter un produit'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingSkeleton() {
+    return ListView.separated(
+      padding: const EdgeInsets.all(12),
+      itemCount: 5, // Show 5 skeleton items
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (context, i) {
+        return Container(
+          height: 80,
+          decoration: BoxDecoration(
+            color: Colors.grey[300],
+            borderRadius: BorderRadius.circular(12),
+          ),
+        );
+      },
+    );
+  }
+}
