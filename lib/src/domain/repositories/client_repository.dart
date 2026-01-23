@@ -3,6 +3,8 @@ import '../entities/client.dart';
 
 abstract class ClientRepository {
   Future<List<Client>> list();
+  Future<int> getClientsCount();
+  Future<bool> clientHasQuotes(int clientId);
   Future<Client?> findById(int id);
   Future<Client> create({required String name, required String phone, required String address});
   Future<void> update(Client client);

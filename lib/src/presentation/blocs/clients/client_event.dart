@@ -11,6 +11,10 @@ class ClientListRequested extends ClientEvent {
   const ClientListRequested();
 }
 
+class ClientRefreshRequested extends ClientEvent {
+  const ClientRefreshRequested();
+}
+
 class ClientCreateRequested extends ClientEvent {
   const ClientCreateRequested({required this.name, required this.phone, required this.address});
 
@@ -39,4 +43,45 @@ class ClientDeleteRequested extends ClientEvent {
   @override
   List<Object?> get props => [id];
 }
+
+class ClientSearchTermChanged extends ClientEvent {
+  const ClientSearchTermChanged(this.searchTerm);
+
+  final String searchTerm;
+
+  @override
+  List<Object?> get props => [searchTerm];
+}
+
+enum ClientFilterOption {
+  all,
+  hasQuotes,
+  noQuotes,
+}
+
+class ClientFilterChanged extends ClientEvent {
+  const ClientFilterChanged(this.filterOption);
+
+  final ClientFilterOption filterOption;
+
+  @override
+  List<Object?> get props => [filterOption];
+}
+
+enum ClientSortOrder {
+  nameAsc,
+  nameDesc,
+  dateCreatedAsc,
+  dateCreatedDesc,
+}
+
+class ClientSortOrderChanged extends ClientEvent {
+  const ClientSortOrderChanged(this.sortOrder);
+
+  final ClientSortOrder sortOrder;
+
+  @override
+  List<Object?> get props => [sortOrder];
+}
+
 

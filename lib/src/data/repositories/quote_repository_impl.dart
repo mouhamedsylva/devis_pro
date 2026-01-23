@@ -1,4 +1,6 @@
 /// Impl SQLite du QuoteRepository (devis + items).
+import 'package:sqflite/sqflite.dart';
+
 import '../../domain/entities/quote.dart';
 import '../../domain/entities/quote_item.dart';
 import '../../domain/repositories/quote_repository.dart';
@@ -16,6 +18,37 @@ class QuoteRepositoryImpl implements QuoteRepository {
   Future<List<Quote>> list() async {
     final rows = await _db.database.query('quotes', orderBy: 'id DESC');
     return rows.map(QuoteModel.fromMap).toList();
+  }
+
+  @override
+  Future<int> getQuotesCount() async {
+    final count = Sqflite.firstIntValue(await _db.database.rawQuery('SELECT COUNT(*) FROM quotes'));
+    return count ?? 0;
+  }
+
+  @override
+  Future<int> getPendingQuotesCount() async {
+    final count = Sqflite.firstIntValue(
+      await _db.database.rawQuery('SELECT COUNT(*) FROM quotes WHERE status = ?', ['pending']),
+    );
+    return count ?? 0;
+  }
+
+  @override
+  Future<double> getMonthlyRevenue() async {
+    final now = DateTime.now();
+    final firstDayOfMonth = DateTime(now.year, now.month, 1).toIso8601String();
+    final lastDayOfMonth = DateTime(now.year, now.month + 1, 0).toIso8601String();
+
+    final result = await _db.database.rawQuery(
+      'SELECT SUM(totalTTC) as revenue FROM quotes WHERE status = ? AND date BETWEEN ? AND ?',
+      ['accepted', firstDayOfMonth, lastDayOfMonth],
+    );
+
+    if (result.isNotEmpty && result.first['revenue'] != null) {
+      return (result.first['revenue'] as num).toDouble();
+    }
+    return 0.0;
   }
 
   @override
@@ -113,4 +146,5 @@ class QuoteRepositoryImpl implements QuoteRepository {
     return '$prefix$next';
   }
 }
+
 

@@ -1,4 +1,6 @@
 /// Impl SQLite du ClientRepository.
+import 'package:sqflite/sqflite.dart';
+
 import '../../domain/entities/client.dart';
 import '../../domain/repositories/client_repository.dart';
 import '../datasources/local/app_database.dart';
@@ -13,6 +15,20 @@ class ClientRepositoryImpl implements ClientRepository {
   Future<List<Client>> list() async {
     final rows = await _db.database.query('clients', orderBy: 'id DESC');
     return rows.map(ClientModel.fromMap).toList();
+  }
+
+  @override
+  Future<int> getClientsCount() async {
+    final count = Sqflite.firstIntValue(await _db.database.rawQuery('SELECT COUNT(*) FROM clients'));
+    return count ?? 0;
+  }
+
+  @override
+  Future<bool> clientHasQuotes(int clientId) async {
+    final count = Sqflite.firstIntValue(
+      await _db.database.rawQuery('SELECT COUNT(*) FROM quotes WHERE clientId = ?', [clientId]),
+    );
+    return (count ?? 0) > 0;
   }
 
   @override
@@ -42,4 +58,5 @@ class ClientRepositoryImpl implements ClientRepository {
     await _db.database.delete('clients', where: 'id = ?', whereArgs: [id]);
   }
 }
+
 

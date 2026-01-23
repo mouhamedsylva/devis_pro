@@ -19,18 +19,46 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
   final _phoneCtrl = TextEditingController();
-  late TabController _tabController;
+  final _phoneFocus = FocusNode();
+  TabController? _tabController;
+
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+
+    _phoneFocus.addListener(() {
+      setState(() {}); // rebuild quand focus change
+    });
+    
+    // Écouter les changements d'onglet
+    _tabController!.addListener(() {
+      if (_tabController!.indexIsChanging && _tabController!.index == 1) {
+        // Si l'utilisateur clique sur l'onglet INSCRIPTION
+        // Naviguer vers RegistrationScreen
+        Future.delayed(Duration.zero, () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const RegistrationScreen(),
+            ),
+          ).then((_) {
+            // Retourner à l'onglet CONNEXION après le retour
+            if (mounted && _tabController != null) {
+              _tabController!.index = 0;
+            }
+          });
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
     _phoneCtrl.dispose();
-    _tabController.dispose();
+    _phoneFocus.dispose();
+    _tabController?.dispose();
     super.dispose();
   }
 
@@ -44,7 +72,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       listenWhen: (p, c) => p.status != c.status,
       listener: (context, state) {
         // ✨ Navigation vers OTP si code envoyé (pour connexion)
-        if (state.status == AuthStatus.otpSent && _tabController.index == 0) {
+        if (state.status == AuthStatus.otpSent) {
           // Mode connexion : naviguer vers vérification OTP
           final phoneNumber = '+221${_phoneCtrl.text.replaceAll(RegExp(r'[^0-9]'), '')}';
           Navigator.push(
@@ -229,9 +257,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                 indicator: UnderlineTabIndicator(
                                   borderSide: BorderSide(
                                     color: AppColors.yellow,
-                                    width: 4, // Augmenté de 3 à 4
+                                    width: 4,
                                   ),
-                                  insets: EdgeInsets.symmetric(horizontal: isWeb ? 60 : 40), // Largeur augmentée
+                                  insets: EdgeInsets.symmetric(horizontal: isWeb ? 60 : 40),
                                 ),
                                 tabs: const [
                                   Tab(text: 'CONNEXION'),
@@ -240,11 +268,12 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                               ),
                             ),
 
-                            // Contenu de l'onglet
+                            // Contenu de l'onglet (uniquement CONNEXION)
                             SizedBox(
                               height: 400,
                               child: TabBarView(
                                 controller: _tabController,
+                                physics: const NeverScrollableScrollPhysics(), // Désactiver le swipe
                                 children: [
                                   // Onglet CONNEXION
                                   SingleChildScrollView(
@@ -252,10 +281,11 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                     child: _buildConnexionTab(context, isWeb),
                                   ),
 
-                                  // Onglet INSCRIPTION
-                                  SingleChildScrollView(
-                                    padding: EdgeInsets.all(isWeb ? 40 : 30),
-                                    child: _buildInscriptionTab(context, isWeb),
+                                  // Onglet INSCRIPTION (vide car navigation automatique)
+                                  Center(
+                                    child: CircularProgressIndicator(
+                                      color: AppColors.yellow,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -292,81 +322,76 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         const SizedBox(height: 12),
 
         // Indicatif + Champ téléphone
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Indicatif pays
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              decoration: BoxDecoration(
-                border: Border.all(color: const Color(0xFFE0E0E0)),
-                borderRadius: BorderRadius.circular(0),
-              ),
-              child: Row(
-                children: [
-                  Image.network(
-                    'https://flagcdn.com/w40/sn.png',
-                    width: 24,
-                    height: 16,
-                    errorBuilder: (context, error, stackTrace) {
-                      return const Icon(Icons.flag, size: 20);
-                    },
-                  ),
+        TextField(
+          controller: _phoneCtrl,
+          focusNode: _phoneFocus,
+          keyboardType: TextInputType.phone,
+          style: const TextStyle(
+            fontSize: 16,
+            color: Color(0xFF2D2D2D),
+          ),
+          decoration: InputDecoration(
+            // 👇 Placeholder collé à l’icône
+            // hintText: '77 123 45 67',
+            hintStyle: TextStyle(
+              color: const Color(0xFF9E9E9E).withOpacity(0.6),
+            ),
+
+            // 👇 +221 visible UNIQUEMENT au focus
+            prefixText: _phoneFocus.hasFocus ? '+221 ' : null,
+            prefixStyle: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: AppColors.yellow,
+            ),
+
+            prefixIcon: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(width: 12),
+                const Icon(
+                  Icons.phone_android,
+                  color: Color(0xFF9E9E9E),
+                ),
+                if (!_phoneFocus.hasFocus) ...[
                   const SizedBox(width: 8),
                   const Text(
-                    '+221',
+                    '77 123 45 67',
                     style: TextStyle(
+                      color: Color(0xFF9E9E9E),
                       fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.yellow,
                     ),
                   ),
                 ],
-              ),
+              ],
             ),
 
-            const SizedBox(width: 12),
-
-            // Champ téléphone
-            Expanded(
-              child: TextField(
-                controller: _phoneCtrl,
-                keyboardType: TextInputType.phone,
-                style: const TextStyle(
-                  fontSize: 16,
-                  color: Color(0xFF2D2D2D),
-                ),
-                decoration: InputDecoration(
-                  hintText: '77 123 45 67',
-                  hintStyle: TextStyle(
-                    color: const Color(0xFF9E9E9E).withOpacity(0.5),
-                  ),
-                  prefixIcon: const Icon(
-                    Icons.phone_android,
-                    color: Color(0xFF9E9E9E),
-                  ),
-                  filled: true,
-                  fillColor: const Color(0xFFF5F5F5),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(0),
-                    borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(0),
-                    borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(0),
-                    borderSide: BorderSide(color: AppColors.yellow, width: 2),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 16,
-                  ),
-                ),
-              ),
+            filled: true,
+            fillColor: const Color(0xFFF5F5F5),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(0),
+              borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
             ),
-          ],
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(0),
+              borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(0),
+              borderSide: BorderSide(color: AppColors.yellow, width: 2),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
+          ),
+          onTap: () {
+            // Force rebuild pour afficher +221
+            setState(() {});
+          },
+          onEditingComplete: () {
+            setState(() {});
+          },
         ),
 
         const SizedBox(height: 32),
@@ -416,7 +441,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                             AuthLoginOTPRequested(phoneNumber: phoneNumber),
                           );
                     },
-              text: loading ? 'ENVOI DU CODE...' : 'RECEVOIR LE CODE',
+              text: loading ? 'ENVOI DU CODE...' : 'SE CONNECTER',
               enabled: !loading,
             );
           },
@@ -424,147 +449,14 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
         const SizedBox(height: 20),
 
-        // Message Email
+        // Message SMS
         const Text(
-          '📧 Un code de vérification sera envoyé à votre email',
+          'Vous recevrez un code de vérification par SMS',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 12,
             color: Color(0xFF9E9E9E),
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildInscriptionTab(BuildContext context, bool isWeb) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Nom de l'entreprise
-        const Text(
-          'NOM DE L\'ENTREPRISE',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF2D2D2D),
-            letterSpacing: 1,
-          ),
-        ),
-
-        const SizedBox(height: 12),
-
-        TextField(
-          style: const TextStyle(fontSize: 16, color: Color(0xFF2D2D2D)),
-          decoration: InputDecoration(
-            hintText: 'Mon Entreprise SARL',
-            hintStyle: TextStyle(
-              color: const Color(0xFF9E9E9E).withOpacity(0.5),
-            ),
-            prefixIcon: const Icon(Icons.business, color: Color(0xFF9E9E9E)),
-            filled: true,
-            fillColor: const Color(0xFFF5F5F5),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(0),
-              borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(0),
-              borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(0),
-              borderSide: BorderSide(color: AppColors.yellow, width: 2),
-            ),
-          ),
-        ),
-
-        const SizedBox(height: 24),
-
-        // Numéro de téléphone
-        const Text(
-          'NUMÉRO DE TÉLÉPHONE',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF2D2D2D),
-            letterSpacing: 1,
-          ),
-        ),
-
-        const SizedBox(height: 12),
-
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              decoration: BoxDecoration(
-                border: Border.all(color: const Color(0xFFE0E0E0)),
-              ),
-              child: const Text(
-                '+221',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.yellow,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TextField(
-                keyboardType: TextInputType.phone,
-                style: const TextStyle(fontSize: 16, color: Color(0xFF2D2D2D)),
-                decoration: InputDecoration(
-                  hintText: '77 123 45 67',
-                  hintStyle: TextStyle(
-                    color: const Color(0xFF9E9E9E).withOpacity(0.5),
-                  ),
-                  prefixIcon: const Icon(
-                    Icons.phone_android,
-                    color: Color(0xFF9E9E9E),
-                  ),
-                  filled: true,
-                  fillColor: const Color(0xFFF5F5F5),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(0),
-                    borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(0),
-                    borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(0),
-                    borderSide: BorderSide(color: AppColors.yellow, width: 2),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 32),
-
-        AnimatedGradientButton(
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const RegistrationScreen(),
-              ),
-            );
-          },
-          text: 'CRÉER MON COMPTE',
-        ),
-
-        const SizedBox(height: 20),
-
-        const Text(
-          'Gratuit • Sans engagement • Données sécurisées',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 12, color: Color(0xFF9E9E9E)),
         ),
       ],
     );

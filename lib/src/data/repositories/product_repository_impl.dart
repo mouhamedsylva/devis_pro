@@ -1,4 +1,6 @@
 /// Impl SQLite du ProductRepository.
+import 'package:sqflite/sqflite.dart';
+
 import '../../domain/entities/product.dart';
 import '../../domain/repositories/product_repository.dart';
 import '../datasources/local/app_database.dart';
@@ -13,6 +15,12 @@ class ProductRepositoryImpl implements ProductRepository {
   Future<List<Product>> list() async {
     final rows = await _db.database.query('products', orderBy: 'id DESC');
     return rows.map(ProductModel.fromMap).toList();
+  }
+
+  @override
+  Future<int> getProductsCount() async {
+    final count = Sqflite.firstIntValue(await _db.database.rawQuery('SELECT COUNT(*) FROM products'));
+    return count ?? 0;
   }
 
   @override

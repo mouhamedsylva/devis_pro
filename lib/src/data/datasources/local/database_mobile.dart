@@ -14,7 +14,7 @@ class DatabaseMobile implements DatabaseInterface {
   Database? _database;
 
   static const _dbName = 'devispro.db';
-  static const _dbVersion = 2; // ✨ Version 2 : ajout email, companyName, isVerified + table OTP
+  static const _dbVersion = 3; // ✨ Version 3 : ajout createdAt à clients
 
   factory DatabaseMobile() {
     _instance ??= DatabaseMobile._();
@@ -90,7 +90,8 @@ CREATE TABLE clients (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
   phone TEXT NOT NULL,
-  address TEXT NOT NULL
+  address TEXT NOT NULL,
+  createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 ''');
 
@@ -165,6 +166,11 @@ CREATE TABLE otp_codes (
       await db.execute('CREATE INDEX idx_otp_email ON otp_codes(email);');
       
       print('✅ Migration v1 → v2 réussie');
+    }
+    if (oldVersion < 3) {
+      // Migration de v2 à v3 : ajout de la colonne createdAt à la table clients
+      await db.execute('ALTER TABLE clients ADD COLUMN createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP');
+      print('✅ Migration v2 → v3 réussie : ajout de createdAt à clients');
     }
   }
 

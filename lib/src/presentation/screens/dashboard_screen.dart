@@ -7,6 +7,7 @@
 /// - Palette jaune/gris/blanc
 /// - Actions rapides accessibles
 
+import 'package:devis_pro/src/presentation/blocs/dashboard/dashboard_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -27,12 +28,11 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   int _selectedIndex = 0;
 
-  // TODO: Remplacer par des données réelles depuis BLoC/Repository
-  final int _totalClients = 24;
-  final int _totalProducts = 48;
-  final int _totalQuotes = 156;
-  final int _pendingQuotes = 8;
-  final double _monthlyRevenue = 2450000; // FCFA
+  @override
+  void initState() {
+    super.initState();
+    context.read<DashboardBloc>().add(LoadDashboardData());
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -70,50 +70,60 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildBottomNavigationBar() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 20,
-            offset: const Offset(0, -5),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(
-                icon: Icons.home_rounded,
-                label: 'Accueil',
-                index: 0,
-              ),
-              _buildNavItem(
-                icon: Icons.people_rounded,
-                label: 'Clients',
-                index: 1,
-                badge: _totalClients,
-              ),
-              _buildNavItem(
-                icon: Icons.receipt_long_rounded,
-                label: 'Devis',
-                index: 2,
-                badge: _pendingQuotes,
-                showBadge: _pendingQuotes > 0,
-              ),
-              _buildNavItem(
-                icon: Icons.store_rounded,
-                label: 'Entreprise',
-                index: 3,
+    return BlocBuilder<DashboardBloc, DashboardState>(
+      builder: (context, state) {
+        int? totalClients;
+        int? pendingQuotes;
+        if (state is DashboardLoaded) {
+          totalClients = state.totalClients;
+          pendingQuotes = state.pendingQuotes;
+        }
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 20,
+                offset: const Offset(0, -5),
               ),
             ],
           ),
-        ),
-      ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildNavItem(
+                    icon: Icons.home_rounded,
+                    label: 'Accueil',
+                    index: 0,
+                  ),
+                  _buildNavItem(
+                    icon: Icons.people_rounded,
+                    label: 'Clients',
+                    index: 1,
+                    badge: totalClients,
+                  ),
+                  _buildNavItem(
+                    icon: Icons.receipt_long_rounded,
+                    label: 'Devis',
+                    index: 2,
+                    badge: pendingQuotes,
+                    showBadge: pendingQuotes != null && pendingQuotes > 0,
+                  ),
+                  _buildNavItem(
+                    icon: Icons.store_rounded,
+                    label: 'Entreprise',
+                    index: 3,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -125,7 +135,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     bool showBadge = false,
   }) {
     final isSelected = _selectedIndex == index;
-    
+
     return GestureDetector(
       onTap: () => _onItemTapped(index),
       behavior: HitTestBehavior.opaque,
@@ -196,41 +206,54 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // =========================================================================
 
   Widget _buildHomeScreen() {
-    return CustomScrollView(
-      slivers: [
-        // App Bar personnalisée
-        _buildSliverAppBar(),
-        
-        // Contenu principal
-        SliverToBoxAdapter(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 24),
-              
-              // Statistiques rapides
-              _buildQuickStats(),
-              
-              const SizedBox(height: 24),
-              
-              // Actions rapides
-              _buildQuickActions(context),
-              
-              const SizedBox(height: 32),
-              
-              // Raccourcis de navigation
-              _buildQuickNavigation(context),
-              
-              const SizedBox(height: 32),
-              
-              // Section activité récente
-              _buildRecentActivity(),
-              
-              const SizedBox(height: 32),
+    return BlocBuilder<DashboardBloc, DashboardState>(
+      builder: (context, state) {
+        if (state is DashboardLoading || state is DashboardInitial) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (state is DashboardError) {
+          return Center(child: Text(state.message));
+        }
+        if (state is DashboardLoaded) {
+          return CustomScrollView(
+            slivers: [
+              // App Bar personnalisée
+              _buildSliverAppBar(),
+
+              // Contenu principal
+              SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 24),
+
+                    // Statistiques rapides
+                    _buildQuickStats(state),
+
+                    const SizedBox(height: 24),
+
+                    // Actions rapides
+                    _buildQuickActions(context),
+
+                    const SizedBox(height: 32),
+
+                    // Raccourcis de navigation
+                    _buildQuickNavigation(context),
+
+                    const SizedBox(height: 32),
+
+                    // Section activité récente
+                    _buildRecentActivity(),
+
+                    const SizedBox(height: 32),
+                  ],
+                ),
+              ),
             ],
-          ),
-        ),
-      ],
+          );
+        }
+        return Container();
+      },
     );
   }
 
@@ -347,7 +370,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildQuickStats() {
+  Widget _buildQuickStats(DashboardLoaded state) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
@@ -429,7 +452,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 const SizedBox(height: 16),
                 
                 Text(
-                  '${_formatCurrency(_monthlyRevenue)} FCFA',
+                  '${_formatCurrency(state.monthlyRevenue)} FCFA',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 32,
@@ -460,7 +483,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Expanded(
                 child: _buildStatCard(
                   icon: Icons.people_rounded,
-                  value: _totalClients.toString(),
+                  value: state.totalClients.toString(),
                   label: 'Clients',
                   color: const Color(0xFF4CAF50),
                 ),
@@ -469,7 +492,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Expanded(
                 child: _buildStatCard(
                   icon: Icons.inventory_2_rounded,
-                  value: _totalProducts.toString(),
+                  value: state.totalProducts.toString(),
                   label: 'Produits',
                   color: const Color(0xFF2196F3),
                 ),
@@ -484,7 +507,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Expanded(
                 child: _buildStatCard(
                   icon: Icons.receipt_long_rounded,
-                  value: _totalQuotes.toString(),
+                  value: state.totalQuotes.toString(),
                   label: 'Devis total',
                   color: const Color(0xFF9C27B0),
                 ),
@@ -493,7 +516,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Expanded(
                 child: _buildStatCard(
                   icon: Icons.pending_actions_rounded,
-                  value: _pendingQuotes.toString(),
+                  value: state.pendingQuotes.toString(),
                   label: 'En attente',
                   color: const Color(0xFFFF9800),
                   showBadge: true,
