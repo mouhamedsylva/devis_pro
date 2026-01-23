@@ -1,13 +1,12 @@
-/// Splash Screen Premium avec animations 3D et particules.
+/// Splash Screen Premium - Générateur de Devis
 ///
-/// Inspiré du design HTML/CSS/JS avec :
-/// - Fond noir avec gradient animé
-/// - Particules connectées animées
-/// - Anneaux rotatifs
-/// - Logo 3D avec effet de flottement
-/// - Titre DEVISPRO avec effet glitch
-/// - Barre de progression circulaire et linéaire
-/// - Icônes de fonctionnalités
+/// Design professionnel avec :
+/// - Logo document/facture animé
+/// - Particules connectées représentant les données
+/// - Anneaux rotatifs symbolisant le workflow
+/// - Titre DEVISPRO avec effet premium
+/// - Icônes métier (calculatrice, signature, envoi)
+/// - Barre de progression avec étapes du processus
 
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
@@ -46,15 +45,15 @@ class _SplashScreenState extends State<SplashScreen>
   late Animation<double> _progressEnterAnimation;
   
   double _progress = 0.0;
-  String _statusText = 'Initialisation...';
+  String _statusText = 'Initialisation du système...';
   Timer? _progressTimer;
   
   final List<String> _statuses = [
-    'Initialisation...',
-    'Chargement des ressources...',
-    'Configuration de l\'interface...',
-    'Préparation des données...',
-    'Presque prêt...',
+    'Initialisation du système...',
+    'Chargement des modèles de devis...',
+    'Configuration des calculs...',
+    'Préparation de l\'interface...',
+    'Vérification des templates...',
     'Finalisation...'
   ];
 
@@ -189,7 +188,7 @@ class _SplashScreenState extends State<SplashScreen>
         
         if (_progress >= 0.99 && targetProgress >= 1.0) {
           _progress = 1.0;
-          _statusText = 'Terminé !';
+          _statusText = 'Prêt à démarrer !';
           timer.cancel();
           
           _fadeController.forward().then((_) {
@@ -239,7 +238,7 @@ class _SplashScreenState extends State<SplashScreen>
                 // Animated gradient background
                 _buildAnimatedGradient(),
                 
-                // Particles canvas
+                // Particles canvas - représente les données et calculs
                 CustomPaint(
                   size: size,
                   painter: ParticlePainter(
@@ -254,12 +253,12 @@ class _SplashScreenState extends State<SplashScreen>
                     children: [
                       const Spacer(flex: 1),
                       
-                      // Logo seul en haut
+                      // Logo document/devis avec effet 3D
                       _build3DLogo(),
                       
                       const SizedBox(height: 40),
                       
-                      // Rotating rings autour du titre
+                      // Rotating rings symbolisant le workflow
                       SizedBox(
                         width: 350,
                         height: 200,
@@ -268,14 +267,14 @@ class _SplashScreenState extends State<SplashScreen>
                           children: [
                             _buildRotatingRing(1, false),
                             _buildRotatingRing(2, true),
-                            // Brand title avec sous-titre au centre
+                            // Brand title avec tagline au centre
                             Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 _buildBrandTitle(),
                                 const SizedBox(height: 8),
                                 Text(
-                                  'VOTRE ASSISTANT GÉNÉRATEUR DE DEVIS',
+                                  'GÉNÉRATEUR DE DEVIS PROFESSIONNEL',
                                   style: TextStyle(
                                     color: AppColors.yellow,
                                     fontSize: 10,
@@ -291,12 +290,12 @@ class _SplashScreenState extends State<SplashScreen>
                       
                       const Spacer(flex: 1),
                       
-                      // Progress section
+                      // Progress section avec étapes
                       _buildProgressSection(),
                       
                       const Spacer(flex: 1),
                       
-                      // Bottom features
+                      // Bottom features - fonctionnalités métier
                       _buildBottomFeatures(),
                       
                       const SizedBox(height: 24),
@@ -341,7 +340,6 @@ class _SplashScreenState extends State<SplashScreen>
             ? -_rotationController.value * 2 * math.pi
             : _rotationController.value * 2 * math.pi;
         
-        // Animation d'entrée des anneaux - s'assurer que les valeurs sont dans les limites
         final enterValue = _ringsEnterAnimation.value.clamp(0.0, 1.0);
         final enterRotation = (1 - enterValue) * 2 * math.pi;
         
@@ -388,16 +386,15 @@ class _SplashScreenState extends State<SplashScreen>
         final rotateY = math.sin(floatProgress * 2 * math.pi) * 0.1;
         final rotateX = math.cos(floatProgress * 2 * math.pi) * 0.1;
         
-        // Animation d'entrée - s'assurer que les valeurs sont dans les limites
         final enterValue = _logoEnterAnimation.value.clamp(0.0, 1.0);
-        final enterRotation = _logoRotationAnimation.value; // Rotation en Z (360°)
+        final enterRotation = _logoRotationAnimation.value;
         
         return Opacity(
           opacity: enterValue,
           child: Transform.scale(
             scale: enterValue,
             child: Transform.rotate(
-              angle: enterRotation, // Rotation 2D simple autour de Z
+              angle: enterRotation,
               child: Transform(
                 transform: Matrix4.identity()
                   ..setEntry(3, 2, 0.001)
@@ -425,12 +422,67 @@ class _SplashScreenState extends State<SplashScreen>
                       ),
                     ],
                   ),
-                  child: Center(
-                    child: Icon(
-                      Icons.description,
-                      size: 70,
-                      color: Colors.white,
-                    ),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Document icon de base
+                      Icon(
+                        Icons.description,
+                        size: 70,
+                        color: Colors.white,
+                      ),
+                      // Overlay avec lignes de devis
+                      Positioned(
+                        bottom: 45,
+                        child: Container(
+                          width: 40,
+                          child: Column(
+                            children: [
+                              Container(
+                                height: 2,
+                                width: 30,
+                                color: Colors.white.withOpacity(0.7),
+                              ),
+                              const SizedBox(height: 3),
+                              Container(
+                                height: 2,
+                                width: 25,
+                                color: Colors.white.withOpacity(0.7),
+                              ),
+                              const SizedBox(height: 3),
+                              Container(
+                                height: 2,
+                                width: 20,
+                                color: Colors.white.withOpacity(0.7),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      // Icône € pour symboliser le devis
+                      Positioned(
+                        bottom: 35,
+                        right: 35,
+                        child: Container(
+                          width: 24,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child: Text(
+                              '€',
+                              style: TextStyle(
+                                color: AppColors.yellow,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -448,7 +500,6 @@ class _SplashScreenState extends State<SplashScreen>
         final shouldGlitch = _glitchController.value > 0.90 && 
                              _glitchController.value < 0.94;
         
-        // Animation d'entrée du titre - s'assurer que les valeurs sont dans les limites
         final enterValue = _titleEnterAnimation.value.clamp(0.0, 1.0);
         final enterOffset = (1 - enterValue) * 30;
         
@@ -534,7 +585,6 @@ class _SplashScreenState extends State<SplashScreen>
                         color: AppColors.yellow,
                       ),
                     ),
-                    // Animation fluide du texte
                     TweenAnimationBuilder<int>(
                       tween: IntTween(begin: 0, end: (_progress * 100).toInt()),
                       duration: const Duration(milliseconds: 300),
@@ -555,7 +605,7 @@ class _SplashScreenState extends State<SplashScreen>
               
               const SizedBox(height: 24),
               
-              // Linear progress bar avec animation fluide
+              // Linear progress bar
               Container(
                 height: 4,
                 decoration: BoxDecoration(
@@ -590,7 +640,7 @@ class _SplashScreenState extends State<SplashScreen>
               
               const SizedBox(height: 12),
               
-              // Status text avec transition fluide
+              // Status text
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 400),
                 transitionBuilder: (child, animation) {
@@ -627,16 +677,16 @@ class _SplashScreenState extends State<SplashScreen>
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        _buildFeatureItem('⚡', 'RAPIDE'),
+        _buildFeatureItem(Icons.calculate, 'CALCUL AUTO'),
         const SizedBox(width: 40),
-        _buildFeatureItem('💼', 'PRO'),
+        _buildFeatureItem(Icons.edit_document, 'PERSONNALISABLE'),
         const SizedBox(width: 40),
-        _buildFeatureItem('🔒', 'SÉCURISÉ'),
+        _buildFeatureItem(Icons.send, 'ENVOI RAPIDE'),
       ],
     );
   }
 
-  Widget _buildFeatureItem(String emoji, String label) {
+  Widget _buildFeatureItem(IconData icon, String label) {
     return AnimatedBuilder(
       animation: _rotationController,
       builder: (context, child) {
@@ -671,9 +721,10 @@ class _SplashScreenState extends State<SplashScreen>
                       ),
                     ),
                   ),
-                  Text(
-                    emoji,
-                    style: const TextStyle(fontSize: 22),
+                  Icon(
+                    icon,
+                    color: AppColors.yellow,
+                    size: 24,
                   ),
                 ],
               ),
@@ -683,8 +734,8 @@ class _SplashScreenState extends State<SplashScreen>
               label,
               style: TextStyle(
                 color: Colors.white.withOpacity(0.7),
-                fontSize: 10,
-                letterSpacing: 1,
+                fontSize: 9,
+                letterSpacing: 0.5,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -695,7 +746,7 @@ class _SplashScreenState extends State<SplashScreen>
   }
 }
 
-// Particle Painter
+// Particle Painter - représente les données qui circulent
 class ParticlePainter extends CustomPainter {
   final Animation<double> animation;
   final List<Particle> particles = [];
@@ -713,7 +764,7 @@ class ParticlePainter extends CustomPainter {
       particle.draw(canvas);
     }
 
-    // Draw connections
+    // Draw connections - symbolise les liens entre données
     final paint = Paint()..strokeWidth = 1;
     for (int i = 0; i < particles.length; i++) {
       for (int j = i + 1; j < particles.length; j++) {
@@ -755,7 +806,6 @@ class Particle {
     x = math.Random().nextDouble() * 1000;
     y = math.Random().nextDouble() * 1000;
     size = math.Random().nextDouble() * 2.5 + 0.8;
-    // Vitesse réduite pour un mouvement plus fluide et lent
     speedX = (math.Random().nextDouble() - 0.5) * 0.6;
     speedY = (math.Random().nextDouble() - 0.5) * 0.6;
     opacity = math.Random().nextDouble() * 0.4 + 0.1;
