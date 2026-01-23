@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../core/utils/formatters.dart';
 import '../blocs/auth/auth_bloc.dart';
 import '../widgets/animated_gradient_button.dart';
 import 'otp_verification_screen.dart';
@@ -74,7 +75,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         // ✨ Navigation vers OTP si code envoyé (pour connexion)
         if (state.status == AuthStatus.otpSent) {
           // Mode connexion : naviguer vers vérification OTP
-          final phoneNumber = '+221${_phoneCtrl.text.replaceAll(RegExp(r'[^0-9]'), '')}';
+          // Normaliser le numéro de téléphone pour qu'il soit cohérent
+          final phoneNumber = Formatters.normalizePhoneNumber(_phoneCtrl.text.trim());
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -436,7 +438,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                       }
                       
                       // ✨ Demander l'envoi d'OTP pour connexion
-                      final phoneNumber = '+221${_phoneCtrl.text.replaceAll(RegExp(r'[^0-9]'), '')}';
+                      // Normaliser le numéro de téléphone pour qu'il soit cohérent
+                      final phoneNumber = Formatters.normalizePhoneNumber(_phoneCtrl.text.trim());
                       context.read<AuthBloc>().add(
                             AuthLoginOTPRequested(phoneNumber: phoneNumber),
                           );

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../core/utils/formatters.dart';
 import '../blocs/auth/auth_bloc.dart';
 import '../widgets/animated_gradient_button.dart';
 import 'otp_verification_screen.dart';
@@ -122,13 +123,15 @@ class _RegistrationScreenState extends State<RegistrationScreen> with TickerProv
       listener: (context, state) {
         if (state.status == AuthStatus.otpSent) {
           // Naviguer vers l'écran de vérification OTP
+          // Normaliser le numéro de téléphone pour qu'il soit cohérent
+          final normalizedPhone = Formatters.normalizePhoneNumber(_phoneCtrl.text.trim());
           Navigator.push(
             context,
             MaterialPageRoute(
               builder: (_) => OTPVerificationScreen(
                 email: _emailCtrl.text.trim(),
                 companyName: _companyNameCtrl.text.trim(),
-                phoneNumber: _phoneCtrl.text.trim(),
+                phoneNumber: normalizedPhone,
               ),
             ),
           );
