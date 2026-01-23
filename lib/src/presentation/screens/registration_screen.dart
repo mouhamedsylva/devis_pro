@@ -1,4 +1,5 @@
 /// Écran d'inscription avec validation et envoi OTP.
+/// Avec onglets CONNEXION/INSCRIPTION pour navigation cohérente
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -14,17 +15,86 @@ class RegistrationScreen extends StatefulWidget {
   State<RegistrationScreen> createState() => _RegistrationScreenState();
 }
 
-class _RegistrationScreenState extends State<RegistrationScreen> {
+class _RegistrationScreenState extends State<RegistrationScreen> with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _companyNameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
+  final _phoneFocus = FocusNode();
+  TabController? _tabController;
+  
+  // Animation controllers
+  late AnimationController _fadeController;
+  late AnimationController _slideController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController!.index = 1; // Commencer sur l'onglet INSCRIPTION
+
+    _phoneFocus.addListener(() {
+      setState(() {});
+    });
+ 
+    // Initialiser les animations
+    _fadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    
+    _slideController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeOut,
+    ));
+    
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.1),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _slideController,
+      curve: Curves.easeOutCubic,
+    ));
+    
+    // Démarrer les animations
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (mounted) {
+        _fadeController.forward();
+        _slideController.forward();
+      }
+    });
+    
+    // Écouter les changements d'onglet
+    _tabController!.addListener(() {
+      if (_tabController!.indexIsChanging && _tabController!.index == 0) {
+        // Si l'utilisateur clique sur l'onglet CONNEXION
+        // Retourner à l'écran de connexion (pop)
+        Future.delayed(Duration.zero, () {
+          Navigator.pop(context);
+        });
+      }
+    });
+  }
 
   @override
   void dispose() {
     _companyNameCtrl.dispose();
     _emailCtrl.dispose();
     _phoneCtrl.dispose();
+    _tabController?.dispose();
+    _fadeController.dispose();
+    _slideController.dispose();
+    _phoneFocus.dispose();
     super.dispose();
   }
 
@@ -108,172 +178,284 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           child: SafeArea(
             child: Center(
               child: SingleChildScrollView(
-                padding: EdgeInsets.all(isWeb ? 40 : 20),
                 child: Container(
                   width: isWeb ? 600 : screenWidth * 0.9,
-                  padding: EdgeInsets.all(isWeb ? 40 : 30),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(0),
-                    border: const Border(
-                      top: BorderSide(color: AppColors.yellow, width: 4),
-                    ),
-                  ),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Titre
-                        Text(
-                          'INSCRIPTION',
-                          style: TextStyle(
-                            fontSize: isWeb ? 28 : 24,
-                            fontWeight: FontWeight.w900,
-                            color: const Color(0xFF2D2D2D),
-                            letterSpacing: 2,
-                          ),
-                          textAlign: TextAlign.center,
+                  padding: EdgeInsets.all(isWeb ? 40 : 20),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Logo
+                      Image.asset(
+                        'assets/images/logo2.png',
+                        width: isWeb ? 300 : 250,
+                        height: isWeb ? 100 : 80,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) {
+                          // Si pas de logo, afficher le texte DEVISPRO
+                          return Column(
+                            children: [
+                              RichText(
+                                text: TextSpan(
+                                  children: [
+                                    TextSpan(
+                                      text: 'DEVIS',
+                                      style: TextStyle(
+                                        fontSize: isWeb ? 48 : 40,
+                                        fontWeight: FontWeight.w900,
+                                        color: AppColors.yellow,
+                                        letterSpacing: 2,
+                                      ),
+                                    ),
+                                    TextSpan(
+                                      text: 'PRO',
+                                      style: TextStyle(
+                                        fontSize: isWeb ? 48 : 40,
+                                        fontWeight: FontWeight.w900,
+                                        color: Colors.white,
+                                        letterSpacing: 2,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Sous-titre
+                      Text(
+                        'FACILE • RAPIDE • PROFESSIONNEL',
+                        style: TextStyle(
+                          fontSize: isWeb ? 14 : 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.yellow,
+                          letterSpacing: 2,
                         ),
+                      ),
 
-                        const SizedBox(height: 8),
+                      const SizedBox(height: 60),
 
-                        Text(
-                          'Créez votre compte en quelques étapes',
-                          style: TextStyle(
-                            fontSize: isWeb ? 14 : 12,
-                            color: const Color(0xFF9E9E9E),
+                      // Carte blanche avec onglets
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(0),
+                          border: Border(
+                            top: BorderSide(color: AppColors.yellow, width: 4),
                           ),
-                          textAlign: TextAlign.center,
                         ),
-
-                        const SizedBox(height: 32),
-
-                        // Nom de l'entreprise
-                        _buildLabel('NOM DE L\'ENTREPRISE *'),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          controller: _companyNameCtrl,
-                          decoration: _inputDecoration(
-                            hintText: 'Ex: Mon Entreprise SARL',
-                            icon: Icons.business,
-                          ),
-                          validator: _validateCompanyName,
-                        ),
-
-                        const SizedBox(height: 24),
-
-                        // Email
-                        _buildLabel('ADRESSE EMAIL *'),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          controller: _emailCtrl,
-                          keyboardType: TextInputType.emailAddress,
-                          decoration: _inputDecoration(
-                            hintText: 'contact@monentreprise.sn',
-                            icon: Icons.email,
-                          ),
-                          validator: _validateEmail,
-                        ),
-
-                        const SizedBox(height: 24),
-
-                        // Téléphone
-                        _buildLabel('NUMÉRO DE TÉLÉPHONE *'),
-                        const SizedBox(height: 8),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
+                        child: Column(
                           children: [
+                            // Espacement en haut
+                            SizedBox(height: isWeb ? 30 : 24),
+                            
+                            // Onglets CONNEXION / INSCRIPTION
                             Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 16,
+                              decoration: const BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(color: Color(0xFFE0E0E0), width: 1),
+                                ),
                               ),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: const Color(0xFFE0E0E0)),
-                                borderRadius: BorderRadius.circular(0),
-                              ),
-                              child: Row(
-                                children: [
-                                  Image.network(
-                                    'https://flagcdn.com/w40/sn.png',
-                                    width: 24,
-                                    height: 16,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return const Icon(Icons.flag, size: 20);
-                                    },
+                              child: TabBar(
+                                controller: _tabController,
+                                labelColor: const Color(0xFF2D2D2D),
+                                unselectedLabelColor: const Color(0xFF9E9E9E),
+                                labelStyle: TextStyle(
+                                  fontSize: isWeb ? 16 : 14,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 1.5,
+                                ),
+                                indicator: UnderlineTabIndicator(
+                                  borderSide: BorderSide(
+                                    color: AppColors.yellow,
+                                    width: 4,
                                   ),
-                                  const SizedBox(width: 8),
-                                  const Text(
-                                    '+221',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
+                                  insets: EdgeInsets.symmetric(horizontal: isWeb ? 60 : 40),
+                                ),
+                                tabs: const [
+                                  Tab(text: 'CONNEXION'),
+                                  Tab(text: 'INSCRIPTION'),
+                                ],
+                              ),
+                            ),
+
+                            // Contenu de l'onglet (uniquement INSCRIPTION)
+                            SizedBox(
+                              height: 580, // Augmenté pour le formulaire d'inscription
+                              child: TabBarView(
+                                controller: _tabController,
+                                physics: const NeverScrollableScrollPhysics(), // Désactiver le swipe
+                                children: [
+                                  // Onglet CONNEXION (vide car navigation automatique)
+                                  Center(
+                                    child: CircularProgressIndicator(
                                       color: AppColors.yellow,
                                     ),
+                                  ),
+
+                                  // Onglet INSCRIPTION
+                                  SingleChildScrollView(
+                                    padding: EdgeInsets.all(isWeb ? 40 : 30),
+                                    child: _buildInscriptionTab(context, isWeb),
                                   ),
                                 ],
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: TextFormField(
-                                controller: _phoneCtrl,
-                                keyboardType: TextInputType.phone,
-                                decoration: _inputDecoration(
-                                  hintText: '77 123 45 67',
-                                  icon: Icons.phone_android,
-                                ),
-                                validator: _validatePhone,
-                              ),
-                            ),
                           ],
                         ),
-
-                        const SizedBox(height: 32),
-
-                        // Bouton recevoir le code
-                        BlocBuilder<AuthBloc, AuthState>(
-                          builder: (context, state) {
-                            final isLoading = state.status == AuthStatus.loading;
-                            return AnimatedGradientButton(
-                              onPressed: isLoading ? null : _requestOTP,
-                              text: isLoading ? 'ENVOI EN COURS...' : 'RECEVOIR LE CODE',
-                            );
-                          },
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        // Info
-                        Text(
-                          '📧 Un code de vérification sera envoyé à votre email',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: isWeb ? 12 : 11,
-                            color: const Color(0xFF9E9E9E),
-                          ),
-                        ),
-
-                        const SizedBox(height: 24),
-
-                        // Lien retour connexion
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text(
-                            'Déjà un compte ? Se connecter',
-                            style: TextStyle(
-                              color: AppColors.yellow,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInscriptionTab(BuildContext context, bool isWeb) {
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: SlideTransition(
+        position: _slideAnimation,
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Nom de l'entreprise
+              _buildLabel('NOM DE L\'ENTREPRISE *'),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _companyNameCtrl,
+                decoration: _inputDecoration(
+                  hintText: 'Ex: Mon Entreprise SARL',
+                  icon: Icons.business,
+                ),
+                validator: _validateCompanyName,
+              ),
+
+              const SizedBox(height: 24),
+
+              // Email
+              _buildLabel('ADRESSE EMAIL *'),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _emailCtrl,
+                keyboardType: TextInputType.emailAddress,
+                decoration: _inputDecoration(
+                  hintText: 'contact@monentreprise.sn',
+                  icon: Icons.email,
+                ),
+                validator: _validateEmail,
+              ),
+
+              const SizedBox(height: 24),
+
+              // Téléphone
+              _buildLabel('NUMÉRO DE TÉLÉPHONE *'),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _phoneCtrl,
+                focusNode: _phoneFocus,
+                keyboardType: TextInputType.phone,
+                validator: _validatePhone,
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: Color(0xFF2D2D2D),
+                ),
+                decoration: InputDecoration(
+                  // +221 seulement au focus
+                  prefixText: _phoneFocus.hasFocus ? '+221 ' : null,
+                  prefixStyle: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.yellow,
+                  ),
+
+                  // Icône + placeholder VISUEL
+                  prefixIcon: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(width: 12),
+                      const Icon(
+                        Icons.phone_android,
+                        color: Color(0xFF9E9E9E),
+                      ),
+                      if (!_phoneFocus.hasFocus && _phoneCtrl.text.isEmpty) ...[
+                        const SizedBox(width: 8),
+                        const Text(
+                          '77 123 45 67',
+                          style: TextStyle(
+                            color: Color(0xFF9E9E9E),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+
+                  filled: true,
+                  fillColor: const Color(0xFFF5F5F5),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(0),
+                    borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(0),
+                    borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(0),
+                    borderSide: const BorderSide(color: AppColors.yellow, width: 2),
+                  ),
+                  errorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(0),
+                    borderSide: const BorderSide(color: Color(0xFFD32F2F)),
+                  ),
+                  focusedErrorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(0),
+                    borderSide: const BorderSide(color: Color(0xFFD32F2F), width: 2),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
+
+
+              const SizedBox(height: 32),
+
+              // Bouton recevoir le code
+              BlocBuilder<AuthBloc, AuthState>(
+                builder: (context, state) {
+                  final isLoading = state.status == AuthStatus.loading;
+                  return AnimatedGradientButton(
+                    onPressed: isLoading ? null : _requestOTP,
+                    text: isLoading ? 'ENVOI EN COURS...' : 'RECEVOIR LE CODE',
+                  );
+                },
+              ),
+
+              const SizedBox(height: 20),
+
+              // Info
+              Text(
+                '📧 Un code de vérification sera envoyé à votre email',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: isWeb ? 12 : 11,
+                  color: const Color(0xFF9E9E9E),
+                ),
+              ),
+            ],
           ),
         ),
       ),

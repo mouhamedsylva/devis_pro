@@ -8,6 +8,7 @@ class ClientModel {
       name: (map['name'] as String?) ?? '',
       phone: (map['phone'] as String?) ?? '',
       address: (map['address'] as String?) ?? '',
+      createdAt: DateTime.parse(map['createdAt'] as String),
     );
   }
 
@@ -17,11 +18,17 @@ class ClientModel {
       'name': c.name,
       'phone': c.phone,
       'address': c.address,
+      'createdAt': c.createdAt.toIso8601String(),
     };
   }
 
   static Map<String, Object?> toInsert({required String name, required String phone, required String address}) {
-    return {'name': name, 'phone': phone, 'address': address};
+    return {
+      'name': name,
+      'phone': phone,
+      'address': address,
+      'createdAt': DateTime.now().toIso8601String(),
+    };
   }
 }
 

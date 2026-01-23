@@ -3,6 +3,7 @@ import '../entities/product.dart';
 
 abstract class ProductRepository {
   Future<List<Product>> list();
+  Future<int> getProductsCount();
   Future<Product> create({
     required String name,
     required double unitPrice,

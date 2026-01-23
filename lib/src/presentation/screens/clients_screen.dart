@@ -14,16 +14,65 @@ class ClientsScreen extends StatefulWidget {
 }
 
 class _ClientsScreenState extends State<ClientsScreen> {
+  final TextEditingController _searchController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
     context.read<ClientBloc>().add(const ClientListRequested());
+    _searchController.addListener(() {
+      context.read<ClientBloc>().add(ClientSearchTermChanged(_searchController.text));
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Clients')),
+      appBar: AppBar(
+        title: BlocBuilder<ClientBloc, ClientState>(
+          builder: (context, state) {
+            return TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Rechercher un client...',
+                border: InputBorder.none,
+                filled: false,
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, color: Colors.grey),
+                        onPressed: () {
+                          _searchController.clear();
+                        },
+                      )
+                    : null,
+              ),
+              onChanged: (searchTerm) {
+                // Event dispatched via listener, no need to dispatch here.
+              },
+            );
+          },
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.filter_list),
+            onPressed: () {
+              _showFilterSortOptions(context);
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.sort),
+            onPressed: () {
+              _showFilterSortOptions(context);
+            },
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openClientDialog(),
         icon: const Icon(Icons.add),
@@ -36,11 +85,11 @@ class _ClientsScreenState extends State<ClientsScreen> {
         },
         builder: (context, state) {
           if (state.status == ClientStatus.loading) {
-            return const Center(child: CircularProgressIndicator());
+            return _buildLoadingSkeleton();
           }
-          final clients = state.clients ?? const <Client>[];
+          final clients = state.clients;
           if (clients.isEmpty) {
-            return const Center(child: Text('Aucun client. Ajoutez votre premier client.'));
+            return _buildEmptyState(context, state.searchTerm);
           }
           return ListView.separated(
             padding: const EdgeInsets.all(12),
@@ -48,17 +97,27 @@ class _ClientsScreenState extends State<ClientsScreen> {
             separatorBuilder: (_, __) => const SizedBox(height: 8),
             itemBuilder: (context, i) {
               final c = clients[i];
-              return ListTile(
-                tileColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                title: Text(c.name, style: const TextStyle(fontWeight: FontWeight.w800)),
-                subtitle: Text('${c.phone}\n${c.address}'),
-                isThreeLine: true,
-                trailing: IconButton(
-                  icon: const Icon(Icons.delete_outline),
-                  onPressed: () => _confirmDelete(c),
+              return Dismissible(
+                key: ValueKey(c.id),
+                direction: DismissDirection.endToStart,
+                background: Container(
+                  color: Colors.red,
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: const Icon(Icons.delete, color: Colors.white),
                 ),
-                onTap: () => _openClientDialog(existing: c),
+                confirmDismiss: (direction) async {
+                  return await _confirmDelete(c);
+                },
+                child: ListTile(
+                  tileColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  title: Text(c.name, style: const TextStyle(fontWeight: FontWeight.w800)),
+                  subtitle: Text('${c.phone}\n${c.address}'),
+                  isThreeLine: true,
+                  // Trailing IconButton is removed as swipe-to-delete is implemented
+                  onTap: () => _openClientDialog(existing: c),
+                ),
               );
             },
           );
@@ -67,7 +126,108 @@ class _ClientsScreenState extends State<ClientsScreen> {
     );
   }
 
-  Future<void> _confirmDelete(Client client) async {
+  void _showFilterSortOptions(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext bc) {
+        return BlocBuilder<ClientBloc, ClientState>(
+          builder: (context, state) {
+            return Wrap(
+              children: <Widget>[
+                ListTile(
+                  title: const Text('Filtrer par'),
+                  tileColor: Theme.of(context).primaryColor.withOpacity(0.1),
+                ),
+                RadioListTile<ClientFilterOption>(
+                  title: const Text('Tous les clients'),
+                  value: ClientFilterOption.all,
+                  groupValue: state.filterOption,
+                  onChanged: (ClientFilterOption? value) {
+                    if (value != null) {
+                      context.read<ClientBloc>().add(ClientFilterChanged(value));
+                      Navigator.pop(context);
+                    }
+                  },
+                ),
+                RadioListTile<ClientFilterOption>(
+                  title: const Text('Clients avec devis'),
+                  value: ClientFilterOption.hasQuotes,
+                  groupValue: state.filterOption,
+                  onChanged: (ClientFilterOption? value) {
+                    if (value != null) {
+                      context.read<ClientBloc>().add(ClientFilterChanged(value));
+                      Navigator.pop(context);
+                    }
+                  },
+                ),
+                RadioListTile<ClientFilterOption>(
+                  title: const Text('Clients sans devis'),
+                  value: ClientFilterOption.noQuotes,
+                  groupValue: state.filterOption,
+                  onChanged: (ClientFilterOption? value) {
+                    if (value != null) {
+                      context.read<ClientBloc>().add(ClientFilterChanged(value));
+                      Navigator.pop(context);
+                    }
+                  },
+                ),
+                ListTile(
+                  title: const Text('Trier par'),
+                  tileColor: Theme.of(context).primaryColor.withOpacity(0.1),
+                ),
+                RadioListTile<ClientSortOrder>(
+                  title: const Text('Nom (A-Z)'),
+                  value: ClientSortOrder.nameAsc,
+                  groupValue: state.sortOrder,
+                  onChanged: (ClientSortOrder? value) {
+                    if (value != null) {
+                      context.read<ClientBloc>().add(ClientSortOrderChanged(value));
+                      Navigator.pop(context);
+                    }
+                  },
+                ),
+                RadioListTile<ClientSortOrder>(
+                  title: const Text('Nom (Z-A)'),
+                  value: ClientSortOrder.nameDesc,
+                  groupValue: state.sortOrder,
+                  onChanged: (ClientSortOrder? value) {
+                    if (value != null) {
+                      context.read<ClientBloc>().add(ClientSortOrderChanged(value));
+                      Navigator.pop(context);
+                    }
+                  },
+                ),
+                RadioListTile<ClientSortOrder>(
+                  title: const Text('Date de création (asc.)'),
+                  value: ClientSortOrder.dateCreatedAsc,
+                  groupValue: state.sortOrder,
+                  onChanged: (ClientSortOrder? value) {
+                    if (value != null) {
+                      context.read<ClientBloc>().add(ClientSortOrderChanged(value));
+                      Navigator.pop(context);
+                    }
+                  },
+                ),
+                RadioListTile<ClientSortOrder>(
+                  title: const Text('Date de création (desc.)'),
+                  value: ClientSortOrder.dateCreatedDesc,
+                  groupValue: state.sortOrder,
+                  onChanged: (ClientSortOrder? value) {
+                    if (value != null) {
+                      context.read<ClientBloc>().add(ClientSortOrderChanged(value));
+                      Navigator.pop(context);
+                    }
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<bool?> _confirmDelete(Client client) async {
     final bloc = context.read<ClientBloc>();
     final ok = await showDialog<bool>(
       context: context,
@@ -82,7 +242,9 @@ class _ClientsScreenState extends State<ClientsScreen> {
     );
     if (ok == true) {
       bloc.add(ClientDeleteRequested(client.id));
+      return true; // Indicate that the item was dismissed
     }
+    return false; // Indicate that the item was not dismissed
   }
 
   Future<void> _openClientDialog({Client? existing}) async {
@@ -124,11 +286,55 @@ class _ClientsScreenState extends State<ClientsScreen> {
       } else {
         bloc.add(
           ClientUpdateRequested(
-            Client(id: existing.id, name: name, phone: phone, address: address),
+            Client(id: existing.id, name: name, phone: phone, address: address, createdAt: existing.createdAt),
           ),
         );
       }
     }
   }
-}
 
+  Widget _buildEmptyState(BuildContext context, String searchTerm) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Image.asset(
+            'assets/images/logo2.png', // Replace with your actual empty state image
+            height: 120,
+            width: 120,
+          ),
+          const SizedBox(height: 20),
+          Text(
+            searchTerm.isEmpty ? 'Aucun client enregistré.' : 'Aucun client trouvé pour "$searchTerm".',
+            style: const TextStyle(fontSize: 18, color: Colors.grey),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 10),
+          if (searchTerm.isEmpty)
+            ElevatedButton.icon(
+              onPressed: () => _openClientDialog(),
+              icon: const Icon(Icons.add),
+              label: const Text('Ajouter un client'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingSkeleton() {
+    return ListView.separated(
+      padding: const EdgeInsets.all(12),
+      itemCount: 5, // Show 5 skeleton items
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (context, i) {
+        return Container(
+          height: 80,
+          decoration: BoxDecoration(
+            color: Colors.grey[300],
+            borderRadius: BorderRadius.circular(12),
+          ),
+        );
+      },
+    );
+  }
+}

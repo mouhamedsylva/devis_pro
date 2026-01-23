@@ -4,6 +4,9 @@ import '../entities/quote_item.dart';
 
 abstract class QuoteRepository {
   Future<List<Quote>> list();
+  Future<int> getQuotesCount();
+  Future<int> getPendingQuotesCount();
+  Future<double> getMonthlyRevenue();
   Future<List<QuoteItem>> listItems(int quoteId);
   Future<Quote> createDraft({
     required int clientId,

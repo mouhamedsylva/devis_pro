@@ -25,6 +25,7 @@ import 'src/presentation/blocs/clients/client_bloc.dart';
 import 'src/presentation/blocs/company/company_bloc.dart';
 import 'src/presentation/blocs/products/product_bloc.dart';
 import 'src/presentation/blocs/quotes/quote_bloc.dart';
+import 'src/presentation/blocs/dashboard/dashboard_bloc.dart';
 import 'src/presentation/screens/auth_gate.dart';
 
 Future<void> main() async {
@@ -86,6 +87,13 @@ class DevisProApp extends StatelessWidget {
           ),
           BlocProvider(
             create: (_) => QuoteBloc(quoteRepository: quoteRepository),
+          ),
+          BlocProvider(
+            create: (_) => DashboardBloc(
+              clientRepository: clientRepository,
+              productRepository: productRepository,
+              quoteRepository: quoteRepository,
+            ),
           ),
         ],
         child: MaterialApp(
