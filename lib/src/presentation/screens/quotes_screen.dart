@@ -651,23 +651,23 @@ class _QuotesScreenState extends State<QuotesScreen> {
     );
   }
 
-  List<dynamic> _applySorting(List<dynamic> quotes) {
-    final sorted = List<dynamic>.from(quotes);
+  List<T> _applySorting<T>(List<T> quotes) {
+    final sorted = List<T>.from(quotes);
     switch (_currentSort) {
       case 'date_desc':
-        sorted.sort((a, b) => b.date.compareTo(a.date));
+        sorted.sort((a, b) => (b as dynamic).date.compareTo((a as dynamic).date));
         break;
       case 'date_asc':
-        sorted.sort((a, b) => a.date.compareTo(b.date));
+        sorted.sort((a, b) => (a as dynamic).date.compareTo((b as dynamic).date));
         break;
       case 'amount_desc':
-        sorted.sort((a, b) => b.totalTTC.compareTo(a.totalTTC));
+        sorted.sort((a, b) => (b as dynamic).totalTTC.compareTo((a as dynamic).totalTTC));
         break;
       case 'amount_asc':
-        sorted.sort((a, b) => a.totalTTC.compareTo(b.totalTTC));
+        sorted.sort((a, b) => (a as dynamic).totalTTC.compareTo((b as dynamic).totalTTC));
         break;
       case 'number':
-        sorted.sort((a, b) => a.quoteNumber.compareTo(b.quoteNumber));
+        sorted.sort((a, b) => (a as dynamic).quoteNumber.compareTo((b as dynamic).quoteNumber));
         break;
     }
     return sorted;

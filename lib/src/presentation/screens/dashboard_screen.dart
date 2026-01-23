@@ -140,64 +140,134 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return GestureDetector(
       onTap: () => _onItemTapped(index),
       behavior: HitTestBehavior.opaque,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? AppColors.yellow.withOpacity(0.1)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
+      child: TweenAnimationBuilder<double>(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+        tween: Tween<double>(
+          begin: 0,
+          end: isSelected ? 1 : 0,
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
+        builder: (context, value, child) {
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutCubic,
+            padding: EdgeInsets.symmetric(
+              horizontal: 16 + (value * 4), // Légère expansion
+              vertical: 8,
+            ),
+            decoration: BoxDecoration(
+              color: Color.lerp(
+                Colors.transparent,
+                AppColors.yellow.withOpacity(0.15),
+                value,
+              ),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: AppColors.yellow.withOpacity(0.3 * value),
+                        blurRadius: 8 * value,
+                        offset: Offset(0, 2 * value),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  icon,
-                  color: isSelected ? AppColors.yellow : const Color(0xFF999999),
-                  size: 26,
-                ),
-                if (showBadge && badge != null)
-                  Positioned(
-                    right: -8,
-                    top: -8,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFF5252),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
-                      ),
-                      constraints: const BoxConstraints(
-                        minWidth: 18,
-                        minHeight: 18,
-                      ),
-                      child: Text(
-                        badge > 9 ? '9+' : badge.toString(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w900,
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    // Animation de l'icône avec scale et rotation
+                    Transform.scale(
+                      scale: 1.0 + (value * 0.15), // Scale de 1.0 à 1.15
+                      child: Transform.rotate(
+                        angle: value * 0.1, // Légère rotation
+                        child: Icon(
+                          icon,
+                          color: Color.lerp(
+                            const Color(0xFF999999),
+                            AppColors.yellow,
+                            value,
+                          ),
+                          size: 26,
                         ),
-                        textAlign: TextAlign.center,
                       ),
                     ),
+                    // Badge animé
+                    if (showBadge && badge != null)
+                      Positioned(
+                        right: -8,
+                        top: -8,
+                        child: TweenAnimationBuilder<double>(
+                          duration: const Duration(milliseconds: 400),
+                          curve: Curves.elasticOut,
+                          tween: Tween<double>(begin: 0, end: 1),
+                          builder: (context, badgeValue, child) {
+                            return Transform.scale(
+                              scale: badgeValue,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFF5252),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white, width: 2),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFFFF5252).withOpacity(0.4),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                constraints: const BoxConstraints(
+                                  minWidth: 18,
+                                  minHeight: 18,
+                                ),
+                                child: Text(
+                                  badge > 9 ? '9+' : badge.toString(),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                  ],
+                ),
+                // Animation du texte avec fade et slide
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  height: isSelected ? 16 : 14,
+                  margin: EdgeInsets.only(top: isSelected ? 6 : 4),
+                  child: AnimatedDefaultTextStyle(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeOutCubic,
+                    style: TextStyle(
+                      color: Color.lerp(
+                        const Color(0xFF999999),
+                        AppColors.yellow,
+                        value,
+                      ),
+                      fontSize: 11,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                      letterSpacing: value * 0.5,
+                    ),
+                    child: Text(
+                      label,
+                      textAlign: TextAlign.center,
+                    ),
                   ),
+                ),
               ],
             ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected ? AppColors.yellow : const Color(0xFF999999),
-                fontSize: 11,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
