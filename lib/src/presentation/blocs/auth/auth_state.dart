@@ -13,10 +13,13 @@ class AuthState extends Equatable {
   const AuthState.authenticated(User user) : this._(status: AuthStatus.authenticated, user: user);
   const AuthState.failure(String message) : this._(status: AuthStatus.failure, message: message);
   
-  // ✨ Nouveaux états pour OTP
+  // ✨ Nouveaux états de diagnostic
+  const AuthState.checkingDatabase() : this._(status: AuthStatus.checkingDatabase, message: 'Vérification de la base de données...');
+  const AuthState.preparingOTP() : this._(status: AuthStatus.preparingOTP, message: 'Préparation du code de sécurité...');
+  const AuthState.sendingEmail() : this._(status: AuthStatus.sendingEmail, message: 'Connexion au serveur Gmail...');
   const AuthState.otpSent({String? message}) 
       : this._(status: AuthStatus.otpSent, message: message ?? 'Code envoyé par email');
-  const AuthState.otpVerifying() : this._(status: AuthStatus.otpVerifying);
+  const AuthState.otpVerifying() : this._(status: AuthStatus.otpVerifying, message: 'Vérification du code...');
 
   final AuthStatus status;
   final User? user;
@@ -32,7 +35,10 @@ enum AuthStatus {
   unauthenticated, 
   authenticated, 
   failure,
-  otpSent,        // ✨ Code OTP envoyé
-  otpVerifying,   // ✨ Vérification OTP en cours
+  otpSent,        
+  otpVerifying,
+  checkingDatabase, // ✨
+  preparingOTP,     // ✨
+  sendingEmail,     // ✨
 }
 

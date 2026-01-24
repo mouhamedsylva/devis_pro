@@ -51,31 +51,40 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       emit(const AuthState.unauthenticated());
     });
     
-    // ✨ Handler pour demande d'OTP
+    // ✨ Handler pour demande d'OTP avec Diagnostic Étape par Étape
     on<AuthOTPRequested>((event, emit) async {
-      emit(const AuthState.loading());
       try {
         final email = event.email.trim().toLowerCase();
         
-        // 1. Vérifier si l'email existe déjà
+        // Étape 1 : Base de données
+        emit(const AuthState.checkingDatabase());
         final existingUserByEmail = await _userRepository.findByEmail(email);
         if (existingUserByEmail != null) {
           emit(const AuthState.failure('Cet email est déjà utilisé'));
           return;
         }
 
-        // 2. Vérifier si le numéro existe déjà (Validation précoce !)
         final existingUserByPhone = await _userRepository.findByPhone(event.phoneNumber);
         if (existingUserByPhone != null) {
           emit(const AuthState.failure('Ce numéro est déjà utilisé'));
           return;
         }
         
-        // 3. Générer et envoyer l'OTP
-        await _otpRepository.generateAndSendOTP(email, event.companyName);
+        // Étape 2 : Préparation sécurisée
+        emit(const AuthState.preparingOTP());
+        
+        // Étape 3 : Envoi (avec timeout global de sécurité)
+        emit(const AuthState.sendingEmail());
+        
+        await _otpRepository.generateAndSendOTP(email, event.companyName).timeout(
+          const Duration(seconds: 25),
+          onTimeout: () => throw Exception('Délai d\'envoi dépassé. Vérifiez votre connexion Internet.'),
+        );
+        
         emit(AuthState.otpSent(message: 'Code envoyé à $email'));
       } catch (e) {
-        emit(AuthState.failure('Erreur lors de l\'envoi du code: ${e.toString()}'));
+        print('🚨 CRITICAL AUTH ERROR: $e');
+        emit(AuthState.failure('Erreur : ${e.toString().replaceAll('Exception: ', '')}'));
       }
     });
     

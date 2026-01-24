@@ -49,8 +49,11 @@ class _AuthGateState extends State<AuthGate> {
             return const Scaffold(body: Center(child: CircularProgressIndicator()));
           case AuthStatus.unauthenticated:
           case AuthStatus.failure:
-          case AuthStatus.otpSent: // Géré par navigation dans les écrans
-          case AuthStatus.otpVerifying: // Géré par navigation dans les écrans
+          case AuthStatus.otpSent:
+          case AuthStatus.otpVerifying:
+          case AuthStatus.checkingDatabase:
+          case AuthStatus.preparingOTP:
+          case AuthStatus.sendingEmail:
             return const LoginScreen();
           case AuthStatus.authenticated:
             return const DashboardScreen();

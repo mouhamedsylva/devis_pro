@@ -441,13 +441,45 @@ class _RegistrationScreenState extends State<RegistrationScreen> with TickerProv
 
               const SizedBox(height: 32),
 
-              // Bouton recevoir le code
+              // Bouton recevoir le code avec Diagnostic
               BlocBuilder<AuthBloc, AuthState>(
                 builder: (context, state) {
-                  final isLoading = state.status == AuthStatus.loading;
-                  return AnimatedGradientButton(
-                    onPressed: isLoading ? null : _requestOTP,
-                    text: isLoading ? 'ENVOI EN COURS...' : 'RECEVOIR LE CODE',
+                  final isChecking = state.status == AuthStatus.checkingDatabase;
+                  final isPreparing = state.status == AuthStatus.preparingOTP;
+                  final isSending = state.status == AuthStatus.sendingEmail;
+                  final isLoading = isChecking || isPreparing || isSending || state.status == AuthStatus.loading;
+                  
+                  String buttonText = 'RECEVOIR LE CODE';
+                  if (isChecking) buttonText = 'VÉRIFICATION...';
+                  if (isPreparing) buttonText = 'PRÉPARATION...';
+                  if (isSending) buttonText = 'ENVOI DE L\'EMAIL...';
+                  if (state.status == AuthStatus.loading) buttonText = 'CHARGEMENT...';
+
+                  return Column(
+                    children: [
+                      AnimatedGradientButton(
+                        onPressed: isLoading ? null : _requestOTP,
+                        text: buttonText,
+                      ),
+                      if (isLoading) ...[
+                        const SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.yellow),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              state.message ?? 'Veuillez patienter...',
+                              style: const TextStyle(fontSize: 12, color: AppColors.yellow, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
                   );
                 },
               ),

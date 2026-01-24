@@ -25,10 +25,13 @@ class EmailService {
         ..subject = 'Code de vérification DevisPro - $otpCode'
         ..html = _buildOTPEmailHTML(recipientName, otpCode);
       
-      // Envoi avec un timeout de 20 secondes
+      // Envoi avec un timeout de 12 secondes (plus court pour diagnostic)
       final sendReport = await send(message, smtpServer).timeout(
-        const Duration(seconds: 20),
-        onTimeout: () => throw Exception('Délai d\'envoi SMTP expiré (Problème réseau ?)'),
+        const Duration(seconds: 12),
+        onTimeout: () {
+          print('🚨 SMTP TIMEOUT triggered');
+          throw Exception('Le serveur de messagerie ne répond pas (Timeout 12s)');
+        },
       );
       
       print('✅ Email envoyé : ${sendReport.toString()}');
