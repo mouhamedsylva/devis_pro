@@ -97,40 +97,43 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _buildNavItem(
-                    icon: Icons.home_rounded,
-                    label: 'Accueil',
-                    index: 0,
+                  Expanded(
+                    child: _buildNavItem(
+                      icon: Icons.home_rounded,
+                      label: 'Accueil',
+                      index: 0,
+                    ),
                   ),
-                  // Onglet Clients commenté - gestion des clients désactivée
-                  // _buildNavItem(
-                  //   icon: Icons.people_rounded,
-                  //   label: 'Clients',
-                  //   index: 1,
-                  //   badge: totalClients,
-                  // ),
-                  _buildNavItem(
-                    icon: Icons.receipt_long_rounded,
-                    label: 'Devis',
-                    index: 1,
-                    badge: pendingQuotes,
-                    showBadge: pendingQuotes != null && pendingQuotes > 0,
+                  Expanded(
+                    child: _buildNavItem(
+                      icon: Icons.receipt_long_rounded,
+                      label: 'Devis',
+                      index: 1,
+                      badge: pendingQuotes,
+                      showBadge: pendingQuotes != null && pendingQuotes > 0,
+                    ),
                   ),
-                  _buildNavItem(
-                    icon: Icons.people_rounded,
-                    label: 'Clients',
-                    index: 2,
-                    badge: totalClients,
+                  Expanded(
+                    child: _buildNavItem(
+                      icon: Icons.people_rounded,
+                      label: 'Clients',
+                      index: 2,
+                      badge: totalClients,
+                    ),
                   ),
-                  _buildNavItem(
-                    icon: Icons.inventory_2_rounded,
-                    label: 'Produits',
-                    index: 3,
+                  Expanded(
+                    child: _buildNavItem(
+                      icon: Icons.inventory_2_rounded,
+                      label: 'Produits',
+                      index: 3,
+                    ),
                   ),
-                  _buildNavItem(
-                    icon: Icons.store_rounded,
-                    label: 'Entreprise',
-                    index: 4,
+                  Expanded(
+                    child: _buildNavItem(
+                      icon: Icons.store_rounded,
+                      label: 'Entreprise',
+                      index: 4,
+                    ),
                   ),
                 ],
               ),
@@ -164,8 +167,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           return AnimatedContainer(
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeOutCubic,
-            padding: EdgeInsets.symmetric(
-              horizontal: 16 + (value * 4), // Légère expansion
+            padding: const EdgeInsets.symmetric(
+              horizontal: 4,
               vertical: 8,
             ),
             decoration: BoxDecoration(
@@ -274,6 +277,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     child: Text(
                       label,
                       textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ),

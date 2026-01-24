@@ -17,8 +17,13 @@ class AuthState extends Equatable {
   const AuthState.checkingDatabase() : this._(status: AuthStatus.checkingDatabase, message: 'Vérification de la base de données...');
   const AuthState.preparingOTP() : this._(status: AuthStatus.preparingOTP, message: 'Préparation du code de sécurité...');
   const AuthState.sendingEmail() : this._(status: AuthStatus.sendingEmail, message: 'Connexion au serveur Gmail...');
-  const AuthState.otpSent({String? message}) 
-      : this._(status: AuthStatus.otpSent, message: message ?? 'Code envoyé par email');
+  
+  const AuthState.registrationOtpSent({String? message}) 
+      : this._(status: AuthStatus.registrationOtpSent, message: message ?? 'Code envoyé par email');
+  
+  const AuthState.loginOtpSent({String? message}) 
+      : this._(status: AuthStatus.loginOtpSent, message: message ?? 'Code de connexion envoyé');
+
   const AuthState.otpVerifying() : this._(status: AuthStatus.otpVerifying, message: 'Vérification du code...');
 
   final AuthStatus status;
@@ -35,10 +40,11 @@ enum AuthStatus {
   unauthenticated, 
   authenticated, 
   failure,
-  otpSent,        
+  registrationOtpSent, // ✨
+  loginOtpSent,        // ✨
   otpVerifying,
-  checkingDatabase, // ✨
-  preparingOTP,     // ✨
-  sendingEmail,     // ✨
+  checkingDatabase, 
+  preparingOTP,     
+  sendingEmail,     
 }
 

@@ -55,6 +55,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthOTPRequested>((event, emit) async {
       try {
         final email = event.email.trim().toLowerCase();
+        final phone = event.phoneNumber;
+        print('🔍 OTP REQ (REG): phone="$phone" email="$email"');
         
         // Étape 1 : Base de données
         emit(const AuthState.checkingDatabase());
@@ -64,7 +66,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           return;
         }
 
-        final existingUserByPhone = await _userRepository.findByPhone(event.phoneNumber);
+        final existingUserByPhone = await _userRepository.findByPhone(phone);
         if (existingUserByPhone != null) {
           emit(const AuthState.failure('Ce numéro est déjà utilisé'));
           return;
@@ -73,7 +75,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         // Étape 2 : Préparation sécurisée
         emit(const AuthState.preparingOTP());
         
-        // Étape 3 : Envoi (avec timeout global de sécurité)
+        // Étape 3 : Envoi
         emit(const AuthState.sendingEmail());
         
         await _otpRepository.generateAndSendOTP(email, event.companyName).timeout(
@@ -81,18 +83,19 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           onTimeout: () => throw Exception('Délai d\'envoi dépassé. Vérifiez votre connexion Internet.'),
         );
         
-        emit(AuthState.otpSent(message: 'Code envoyé à $email'));
+        emit(AuthState.registrationOtpSent(message: 'Code envoyé à $email'));
       } catch (e) {
         print('🚨 CRITICAL AUTH ERROR: $e');
         emit(AuthState.failure('Erreur : ${e.toString().replaceAll('Exception: ', '')}'));
       }
     });
-    
+
     // ✨ Handler pour inscription avec vérification OTP
     on<AuthRegistrationRequested>((event, emit) async {
       emit(const AuthState.otpVerifying());
       try {
         final email = event.email.trim().toLowerCase();
+        print('🔍 REGISTER FINAL: phone="${event.phoneNumber}" (len=${event.phoneNumber.length}) email="$email"');
 
         // 1. Vérifier l'OTP
         final isValidOTP = await _otpRepository.verifyOTP(email, event.otpCode);
@@ -101,9 +104,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           return;
         }
         
-        // 2. Vérifier si le numéro existe déjà
+        // 2. Vérifier si le numéro existe déjà (Double check)
         final existingByPhone = await _userRepository.findByPhone(event.phoneNumber);
         if (existingByPhone != null) {
+          print('❌ REG FAILED: Phone already exists "${event.phoneNumber}"');
           emit(const AuthState.failure('Ce numéro est déjà utilisé'));
           return;
         }
@@ -138,7 +142,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       try {
         final email = event.email.trim().toLowerCase();
         await _otpRepository.generateAndSendOTP(email, event.companyName);
-        emit(AuthState.otpSent(message: 'Code renvoyé à $email'));
+        emit(AuthState.registrationOtpSent(message: 'Code renvoyé à $email'));
       } catch (e) {
         emit(AuthState.failure('Erreur lors du renvoi: ${e.toString()}'));
       }
@@ -148,9 +152,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthLoginOTPRequested>((event, emit) async {
       emit(const AuthState.loading());
       try {
+        print('🔍 LOGIN REQUEST: phone="${event.phoneNumber}" (len=${event.phoneNumber.length})');
+        
         // 1. Vérifier si l'utilisateur existe
         final user = await _userRepository.findByPhone(event.phoneNumber);
         if (user == null) {
+          print('❌ LOGIN FAILED: Account not found for "${event.phoneNumber}"');
           emit(const AuthState.failure('Aucun compte trouvé avec ce numéro'));
           return;
         }
@@ -173,7 +180,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           user.companyName ?? 'Utilisateur',
         );
         
-        emit(AuthState.otpSent(message: 'Code envoyé à ${user.email}'));
+        emit(AuthState.loginOtpSent(message: 'Code envoyé à ${user.email}'));
       } catch (e) {
         emit(AuthState.failure('Erreur lors de l\'envoi: ${e.toString()}'));
       }
@@ -183,10 +190,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthLoginWithOTP>((event, emit) async {
       emit(const AuthState.otpVerifying());
       try {
+        print('🔍 VERIFY OTP: phone="${event.phoneNumber}" (len=${event.phoneNumber.length})');
+
         // 1. Récupérer l'utilisateur
         final user = await _userRepository.findByPhone(event.phoneNumber);
         if (user == null) {
-          emit(const AuthState.failure('Compte introuvable'));
+          print('❌ OTP VERIFY FAILED: Compte introuvable pour "${event.phoneNumber}"');
+          emit(AuthState.failure('Compte introuvable pour ${event.phoneNumber}'));
           return;
         }
         

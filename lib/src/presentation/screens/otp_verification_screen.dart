@@ -43,6 +43,18 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
   void initState() {
     super.initState();
     _startCountdown();
+    
+    // ✨ Listener pour rafraîchir l'UI quand le focus change (pour la bordure des cases)
+    _hiddenFocus.addListener(() {
+      if (mounted) setState(() {});
+    });
+
+    // ✨ Forcer l'ouverture du clavier après un court délai
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted && !_disposed) {
+        _hiddenFocus.requestFocus();
+      }
+    });
   }
 
   @override
@@ -226,7 +238,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
             ),
           );
           }
-        } else if (state.status == AuthStatus.otpSent) {
+        } else if (state.status == AuthStatus.registrationOtpSent || state.status == AuthStatus.loginOtpSent) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -349,95 +361,93 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
 
                         const SizedBox(height: 32),
 
-                        // Zone de saisie OTP Personnalisée (Show then Hide)
-                        Focus(
-                          focusNode: _hiddenFocus,
-                          onFocusChange: (hasFocus) {
-                            setState(() {}); // Rebuild to show focus color
+                        // Zone de saisie OTP Personnalisée
+                        GestureDetector(
+                          onTap: () {
+                            _hiddenFocus.requestFocus();
                           },
-                          child: GestureDetector(
-                            onTap: () {
-                              _hiddenFocus.requestFocus();
-                            },
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                // TextField invisible pour capturer la saisie
-                                Opacity(
-                                  opacity: 0,
-                                  child: SizedBox(
-                                    width: 1,
-                                    height: 1,
-                                    child: TextField(
-                                      controller: _otpController,
-                                      focusNode: _hiddenFocus,
-                                      keyboardType: TextInputType.number,
-                                      maxLength: 6,
-                                      autofocus: true,
-                                      onChanged: (value) {
-                                        setState(() {});
-                                        if (value.length > _lastLength) {
-                                          // Nouveau chiffre ajouté
-                                          final index = value.length - 1;
-                                          _showDigits.add(index);
-                                          Timer(const Duration(milliseconds: 600), () {
-                                            if (mounted) {
-                                              setState(() {
-                                                _showDigits.remove(index);
-                                              });
-                                            }
-                                          });
-                                        }
-                                        _lastLength = value.length;
-                                        if (value.length == 6) {
-                                          _verifyOTP();
-                                        }
-                                      },
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              // TextField quasi-invisible mais présent pour capter le clavier
+                              Positioned.fill(
+                                child: Opacity(
+                                  opacity: 0.01,
+                                  child: TextField(
+                                    controller: _otpController,
+                                    focusNode: _hiddenFocus,
+                                    keyboardType: TextInputType.number,
+                                    maxLength: 6,
+                                    autofocus: true,
+                                    style: const TextStyle(fontSize: 1),
+                                    decoration: const InputDecoration(
+                                      counterText: '',
+                                      border: InputBorder.none,
+                                      enabledBorder: InputBorder.none,
+                                      focusedBorder: InputBorder.none,
                                     ),
+                                    onChanged: (value) {
+                                      setState(() {});
+                                      if (value.length > _lastLength) {
+                                        final index = value.length - 1;
+                                        _showDigits.add(index);
+                                        Timer(const Duration(milliseconds: 600), () {
+                                          if (mounted) {
+                                            setState(() {
+                                              _showDigits.remove(index);
+                                            });
+                                          }
+                                        });
+                                      }
+                                      _lastLength = value.length;
+                                      if (value.length == 6) {
+                                        _verifyOTP();
+                                      }
+                                    },
                                   ),
                                 ),
-                                // Rendu visuel des 6 cases
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: List.generate(6, (index) {
-                                    final char = _otpController.text.length > index
-                                        ? _otpController.text[index]
-                                        : '';
-                                    final isVisible = _showDigits.contains(index);
-                                    final hasFocus = _hiddenFocus.hasFocus;
-                                    final isCurrent = _otpController.text.length == index && hasFocus;
+                              ),
+                              // Rendu visuel des 6 cases
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: List.generate(6, (index) {
+                                  final char = _otpController.text.length > index
+                                      ? _otpController.text[index]
+                                      : '';
+                                  final isVisible = _showDigits.contains(index);
+                                  final hasFocus = _hiddenFocus.hasFocus;
+                                  final isCurrent = _otpController.text.length == index && hasFocus;
 
-                                    return Container(
-                                      width: isWeb ? 50 : 42,
-                                      height: 55,
-                                      alignment: Alignment.center,
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFF5F5F5),
-                                        borderRadius: BorderRadius.circular(0),
-                                        border: Border.all(
-                                          color: isCurrent
-                                              ? AppColors.yellow
-                                              : (char.isNotEmpty ? AppColors.yellow.withOpacity(0.5) : const Color(0xFFE0E0E0)),
-                                          width: isCurrent ? 2 : 1,
-                                        ),
+                                  return Container(
+                                    width: isWeb ? 50 : 42,
+                                    height: 55,
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF5F5F5),
+                                      borderRadius: BorderRadius.circular(0),
+                                      border: Border.all(
+                                        color: isCurrent
+                                            ? AppColors.yellow
+                                            : (char.isNotEmpty ? AppColors.yellow.withOpacity(0.5) : const Color(0xFFE0E0E0)),
+                                        width: isCurrent ? 2 : 1,
                                       ),
-                                      child: Text(
-                                        char.isEmpty
-                                            ? ''
-                                            : (isVisible ? char : '•'),
-                                        style: TextStyle(
-                                          fontSize: 22,
-                                          fontWeight: FontWeight.w900,
-                                          color: isVisible 
-                                              ? const Color(0xFF2D2D2D) 
-                                              : AppColors.yellow,
-                                        ),
+                                    ),
+                                    child: Text(
+                                      char.isEmpty
+                                          ? ''
+                                          : (isVisible ? char : '•'),
+                                      style: TextStyle(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.w900,
+                                        color: isVisible 
+                                            ? const Color(0xFF2D2D2D) 
+                                            : AppColors.yellow,
                                       ),
-                                    );
-                                  }),
-                                ),
-                              ],
-                            ),
+                                    ),
+                                  );
+                                }),
+                              ),
+                            ],
                           ),
                         ),
 
@@ -574,6 +584,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                                   fontWeight: FontWeight.w600,
                                   color: AppColors.yellow,
                                 ),
+                                
                               ),
                             ],
                           ),

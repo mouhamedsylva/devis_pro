@@ -123,7 +123,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> with TickerProv
 
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
-        if (state.status == AuthStatus.otpSent) {
+        if (state.status == AuthStatus.registrationOtpSent) {
           // Naviguer vers l'écran de vérification OTP
           // Normaliser le numéro de téléphone pour qu'il soit cohérent
           final normalizedPhone = Formatters.normalizePhoneNumber(_phoneCtrl.text.trim());
@@ -472,9 +472,16 @@ class _RegistrationScreenState extends State<RegistrationScreen> with TickerProv
                               child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.yellow),
                             ),
                             const SizedBox(width: 10),
-                            Text(
-                              state.message ?? 'Veuillez patienter...',
-                              style: const TextStyle(fontSize: 12, color: AppColors.yellow, fontWeight: FontWeight.bold),
+                            Flexible(
+                              child: Text(
+                                state.message ?? 'Veuillez patienter...',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.yellow,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ],
                         ),

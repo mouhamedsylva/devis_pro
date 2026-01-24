@@ -73,7 +73,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       listenWhen: (p, c) => p.status != c.status,
       listener: (context, state) {
         // ✨ Navigation vers OTP si code envoyé (pour connexion)
-        if (state.status == AuthStatus.otpSent) {
+        if (state.status == AuthStatus.loginOtpSent) {
           // Mode connexion : naviguer vers vérification OTP
           // Normaliser le numéro de téléphone pour qu'il soit cohérent
           final phoneNumber = Formatters.normalizePhoneNumber(_phoneCtrl.text.trim());
