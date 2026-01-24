@@ -6,6 +6,9 @@
     <!-- Permission pour accéder aux contacts -->
     <uses-permission android:name="android.permission.READ_CONTACTS" />
     <uses-permission android:name="android.permission.WRITE_CONTACTS" />
+    
+    <!-- Permission pour la caméra (logo entreprise) -->
+    <uses-permission android:name="android.permission.CAMERA" />
 
     
     <application
