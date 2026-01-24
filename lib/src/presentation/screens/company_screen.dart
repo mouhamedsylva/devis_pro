@@ -348,6 +348,10 @@ class _CompanyScreenState extends State<CompanyScreen> {
               _buildSliverHeader(company),
               
               SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 60, 16, 40),
+                  child: Column(
+                    children: [
                       // Statistiques rapides
                       _buildQuickStats(),
                       
@@ -579,108 +583,6 @@ class _CompanyScreenState extends State<CompanyScreen> {
     );
   }
 
-  Widget _buildHeader(Company? company) {
-    final logoPath = _selectedLogoPath ?? company?.logoPath;
-    
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.yellow,
-            AppColors.yellow.withOpacity(0.8),
-          ],
-        ),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
-          child: Column(
-            children: [
-              // Logo avec upload
-              GestureDetector(
-                onTap: _pickLogo,
-                child: Container(
-                  width: 140,
-                  height: 140,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // Logo ou placeholder
-                      ClipOval(
-                        child: logoPath != null && logoPath.isNotEmpty
-                            ? Image.file(
-                                File(logoPath),
-                                width: 140,
-                                height: 140,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => _buildLogoPlaceholder(),
-                              )
-                            : _buildLogoPlaceholder(),
-                      ),
-                      // Overlay pour upload
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: AppColors.yellow,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 3),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.2),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.camera_alt,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              
-              const SizedBox(height: 16),
-              
-              // Texte d'instruction
-              Text(
-                'Touchez pour modifier le logo',
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.9),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildLogoPlaceholder() {
     return Container(
       width: 100,
@@ -835,7 +737,6 @@ class _CompanyScreenState extends State<CompanyScreen> {
   }
 
   Widget _buildQuickStats() {
-    // Dans une version plus avancée, ces données viendraient d'un BLoC/Repository
     return Row(
       children: [
         _buildStatCard('DÉVIS', '24', Icons.description_outlined),
@@ -941,6 +842,36 @@ class _CompanyScreenState extends State<CompanyScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildSignaturePlaceholder() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          Icons.draw,
+          size: 48,
+          color: Colors.grey[400],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Aucune signature',
+          style: TextStyle(
+            color: Colors.grey[400],
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Touchez pour ajouter',
+          style: TextStyle(
+            color: Colors.grey[400],
+            fontSize: 12,
+          ),
+        ),
+      ],
     );
   }
 

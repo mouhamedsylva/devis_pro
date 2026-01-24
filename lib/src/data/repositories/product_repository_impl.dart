@@ -24,10 +24,15 @@ class ProductRepositoryImpl implements ProductRepository {
   }
 
   @override
-  Future<Product> create({required String name, required double unitPrice, required double vatRate}) async {
+  Future<Product> create({
+    required String name,
+    required double unitPrice,
+    required double vatRate,
+    required String unit,
+  }) async {
     final id = await _db.database.insert(
       'products',
-      ProductModel.toInsert(name: name, unitPrice: unitPrice, vatRate: vatRate),
+      ProductModel.toInsert(name: name, unitPrice: unitPrice, vatRate: vatRate, unit: unit),
     );
     final rows = await _db.database.query('products', where: 'id = ?', whereArgs: [id], limit: 1);
     return ProductModel.fromMap(rows.first);

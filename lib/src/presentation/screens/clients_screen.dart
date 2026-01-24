@@ -1,4 +1,6 @@
 /// ClientsScreen – liste + ajout/modif/suppression (MVP).
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import '../../core/constants/app_colors.dart';
 import '../../domain/entities/client.dart';
@@ -36,7 +38,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
     // Demander la permission
     if (await FlutterContacts.requestPermission(readonly: true)) {
       // Ouvrir le sélecteur natif
-      final contact = await FlutterContacts.openExternalPicker();
+      final contact = await FlutterContacts.openExternalPick();
       
       if (contact != null) {
         // Re-récupérer le contact complet pour avoir les numéros si nécessaire 

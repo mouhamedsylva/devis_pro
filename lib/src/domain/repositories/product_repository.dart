@@ -8,6 +8,7 @@ abstract class ProductRepository {
     required String name,
     required double unitPrice,
     required double vatRate,
+    required String unit,
   });
   Future<void> update(Product product);
   Future<void> delete(int id);

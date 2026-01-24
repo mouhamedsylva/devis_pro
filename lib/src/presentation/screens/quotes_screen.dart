@@ -17,6 +17,7 @@ import '../blocs/template/template_event.dart';
 import '../widgets/quote_preview_dialog.dart';
 import 'quote_editor_screen.dart';
 import 'templates_screen.dart';
+import '../services/quote_pdf_service.dart';
 
 class QuotesScreen extends StatefulWidget {
   const QuotesScreen({super.key});
