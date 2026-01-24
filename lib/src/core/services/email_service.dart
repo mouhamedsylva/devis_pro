@@ -25,16 +25,18 @@ class EmailService {
         ..subject = 'Code de vérification DevisPro - $otpCode'
         ..html = _buildOTPEmailHTML(recipientName, otpCode);
       
-      // Envoi
-      final sendReport = await send(message, smtpServer);
+      // Envoi avec un timeout de 20 secondes
+      final sendReport = await send(message, smtpServer).timeout(
+        const Duration(seconds: 20),
+        onTimeout: () => throw Exception('Délai d\'envoi SMTP expiré (Problème réseau ?)'),
+      );
+      
       print('✅ Email envoyé : ${sendReport.toString()}');
       return true;
     } catch (e) {
-      print('❌ Erreur envoi email : $e');
-      // En mode développement, afficher le code dans la console
-      print('📧 CODE OTP (DEV MODE): $otpCode pour $recipientEmail');
-      // Retourner true en dev pour permettre les tests
-      return true;
+      print('❌ Erreur critique envoi email : $e');
+      // On re-throw pour que le BLoC capture l'erreur et l'affiche à l'utilisateur
+      throw Exception('L\'envoi du code a échoué. Vérifiez votre connexion Internet et réessayez.');
     }
   }
   

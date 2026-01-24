@@ -456,7 +456,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> with TickerProv
 
               // Info
               Text(
-                '📧 Un code de vérification sera envoyé à votre email',
+                '📧 Un code de vérification sera envoyé à votre email.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: isWeb ? 12 : 11,
