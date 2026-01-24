@@ -9,6 +9,7 @@ class QuoteItem extends Equatable {
     required this.unitPrice,
     required this.quantity,
     required this.vatRate,
+    this.unit,
     required this.total,
   });
 
@@ -18,9 +19,10 @@ class QuoteItem extends Equatable {
   final double unitPrice;
   final double quantity;
   final double vatRate;
+  final String? unit;
   final double total;
 
   @override
-  List<Object?> get props => [id, quoteId, productName, unitPrice, quantity, vatRate, total];
+  List<Object?> get props => [id, quoteId, productName, unitPrice, quantity, vatRate, unit, total];
 }
 

@@ -12,7 +12,7 @@ class DatabaseWeb implements DatabaseInterface {
   Database? _database;
 
   static const _dbName = 'devispro';
-  static const _dbVersion = 6; // ✨ Version 6 : clientId nullable + clientName/clientPhone dans quotes
+  static const _dbVersion = 7; // ✨ Version 7 : ajout du champ 'unit' (unité)
 
   factory DatabaseWeb() {
     _instance ??= DatabaseWeb._();

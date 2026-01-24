@@ -14,7 +14,7 @@ import '../../domain/repositories/template_repository.dart';
 import '../blocs/quotes/quote_bloc.dart';
 import '../blocs/template/template_bloc.dart';
 import '../blocs/template/template_event.dart';
-import '../services/quote_pdf_service.dart';
+import '../widgets/quote_preview_dialog.dart';
 import 'quote_editor_screen.dart';
 import 'templates_screen.dart';
 
@@ -366,39 +366,12 @@ class _QuotesScreenState extends State<QuotesScreen> {
                       ),
                     ),
                     
-                    // Actions
-                    Row(
-                      children: [
-                        // Bouton PDF
-                        _buildActionButton(
-                          icon: Icons.picture_as_pdf_rounded,
-                          color: Colors.red,
-                          onTap: () => _exportPdf(context, quote.id, quote.clientId),
-                        ),
-                        
-                        const SizedBox(width: 8),
-                        
-                        // Bouton WhatsApp
-                        _buildActionButton(
-                          icon: FontAwesomeIcons.whatsapp,
-                          color: const Color(0xFF25D366),
-                          onTap: () => _shareToWhatsApp(context, quote.id, quote.clientId),
-                        ),
-                        
-                        const SizedBox(width: 8),
-                        
-                        // Bouton Sauvegarder comme modèle
-                        _buildActionButton(
-                          icon: Icons.bookmark_add_outlined,
-                          color: const Color(0xFF9C27B0),
-                          onTap: () => _saveAsTemplate(context, quote.id),
-                        ),
-                        
-                        const SizedBox(width: 8),
-                        
-                        // Menu statut
-                        _buildStatusMenu(context, quote),
-                      ],
+                    // Action : Voir
+                    _buildActionButton(
+                      icon: Icons.visibility_rounded,
+                      label: 'Voir',
+                      color: AppColors.yellow,
+                      onTap: () => _showQuotePreview(context, quote),
                     ),
                   ],
                 ),
@@ -412,6 +385,7 @@ class _QuotesScreenState extends State<QuotesScreen> {
 
   Widget _buildActionButton({
     required IconData icon,
+    required String label,
     required Color color,
     required VoidCallback onTap,
   }) {
@@ -421,23 +395,75 @@ class _QuotesScreenState extends State<QuotesScreen> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           decoration: BoxDecoration(
             color: color.withOpacity(0.1),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: color.withOpacity(0.2),
+              color: color.withOpacity(0.3),
               width: 1,
             ),
           ),
-          child: Icon(
-            icon,
-            size: 20,
-            color: color,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 18, color: color),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _showQuotePreview(BuildContext context, dynamic quote) async {
+    final companyRepo = context.read<CompanyRepository>();
+    final clientRepo = context.read<ClientRepository>();
+    final quoteRepo = context.read<QuoteRepository>();
+
+    // Afficher un loader pendant le chargement des données
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final company = await companyRepo.getCompany();
+      Client? client;
+      if (quote.clientId != null) {
+        client = await clientRepo.findById(quote.clientId);
+      }
+      final items = await quoteRepo.listItems(quote.id);
+
+      if (!context.mounted) return;
+      Navigator.pop(context); // Fermer le loader
+
+      await showDialog(
+        context: context,
+        builder: (_) => QuotePreviewDialog(
+          quote: quote,
+          items: items,
+          company: company,
+          client: client,
+        ),
+      );
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context); // Fermer le loader
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e')),
+        );
+      }
+    }
   }
 
   Widget _buildStatusMenu(BuildContext context, dynamic quote) {

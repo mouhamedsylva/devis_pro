@@ -25,7 +25,7 @@ class QuoteBloc extends Bloc<QuoteEvent, QuoteState> {
     on<QuoteCreateRequested>((event, emit) async {
       emit(const QuoteState.loading());
       try {
-        await _quoteRepository.createDraft(
+        final quote = await _quoteRepository.createDraft(
           clientId: event.clientId,
           clientName: event.clientName,
           clientPhone: event.clientPhone,
@@ -33,7 +33,10 @@ class QuoteBloc extends Bloc<QuoteEvent, QuoteState> {
           items: event.items,
           status: event.status,
         );
-        add(const QuoteListRequested());
+        emit(QuoteState.success(quote));
+        // On rafraîchit la liste en arrière-plan
+        final quotes = await _quoteRepository.list();
+        emit(QuoteState.loaded(quotes));
       } catch (e) {
         emit(QuoteState.failure(e.toString()));
       }

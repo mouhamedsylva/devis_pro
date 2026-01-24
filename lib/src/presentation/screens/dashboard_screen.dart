@@ -13,9 +13,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../blocs/auth/auth_bloc.dart';
 import '../../core/constants/app_colors.dart';
-// import 'clients_screen.dart'; // Commenté : gestion des clients désactivée - saisie directe dans l'éditeur de devis
+import 'clients_screen.dart';
 import 'company_screen.dart';
-// import 'products_screen.dart'; // Commenté : les produits peuvent être créés directement dans l'éditeur de devis
+import 'products_screen.dart';
 import 'quotes_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -46,12 +46,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
       case 0:
         return _buildHomeScreen();
       case 1:
-        // case 1 était ClientsScreen - maintenant redirigé vers Devis
         return const QuotesScreen();
       case 2:
-        // case 2 était QuotesScreen - maintenant redirigé vers Entreprise
+        return const ClientsScreen();
+      case 3:
+        return const ProductsScreen();
+      case 4:
         return const CompanyScreen();
-      // case 3 était CompanyScreen - supprimé
       default:
         return _buildHomeScreen();
     }
@@ -111,14 +112,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   _buildNavItem(
                     icon: Icons.receipt_long_rounded,
                     label: 'Devis',
-                    index: 1, // Index changé de 2 à 1
+                    index: 1,
                     badge: pendingQuotes,
                     showBadge: pendingQuotes != null && pendingQuotes > 0,
                   ),
                   _buildNavItem(
+                    icon: Icons.people_rounded,
+                    label: 'Clients',
+                    index: 2,
+                    badge: totalClients,
+                  ),
+                  _buildNavItem(
+                    icon: Icons.inventory_2_rounded,
+                    label: 'Produits',
+                    index: 3,
+                  ),
+                  _buildNavItem(
                     icon: Icons.store_rounded,
                     label: 'Entreprise',
-                    index: 2, // Index changé de 3 à 2
+                    index: 4,
                   ),
                 ],
               ),
@@ -718,7 +730,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   icon: Icons.person_add_rounded,
                   label: 'Ajouter client',
                   color: const Color(0xFF4CAF50),
-                  onTap: () => _onItemTapped(1), // Aller à l'onglet Clients
+                  onTap: () => _onItemTapped(2), // Aller à l'onglet Clients
                 ),
               ),
             ],
@@ -797,26 +809,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Row(
             children: [
               // Raccourci Produits commenté - les produits peuvent être créés directement dans l'éditeur de devis
-              // Expanded(
-              //   child: _buildQuickNavCard(
-              //     icon: Icons.inventory_2_rounded,
-              //     label: 'Produits',
-              //     color: const Color(0xFF2196F3),
-              //     onTap: () => Navigator.of(context).push(
-              //       MaterialPageRoute(builder: (_) => const ProductsScreen()),
-              //     ),
-              //   ),
-              // ),
-              // const SizedBox(width: 12),
               Expanded(
                 child: _buildQuickNavCard(
-                  icon: Icons.settings_rounded,
-                  label: 'Paramètres',
-                  color: const Color(0xFF757575),
-                  onTap: () => _onItemTapped(3), // Aller à l'onglet Entreprise
+                  icon: Icons.inventory_2_rounded,
+                  label: 'Produits',
+                  color: const Color(0xFF2196F3),
+                  onTap: () => _onItemTapped(3), // Aller à l'onglet Produits
                 ),
               ),
-              const Expanded(child: SizedBox()), // Espace vide pour équilibrer la mise en page
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildQuickNavCard(
+                  icon: Icons.store_rounded,
+                  label: 'Mon Entreprise',
+                  color: const Color(0xFF757575),
+                  onTap: () => _onItemTapped(4), // Aller à l'onglet Entreprise
+                ),
+              ),
             ],
           ),
           

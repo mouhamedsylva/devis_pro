@@ -104,11 +104,13 @@ class _RegistrationScreenState extends State<RegistrationScreen> with TickerProv
       final email = _emailCtrl.text.trim();
       final companyName = _companyNameCtrl.text.trim();
 
-      // Déclencher la demande d'OTP
+      // Déclencher la demande d'OTP (avec numéro pour validation précoce)
+      final normalizedPhone = Formatters.normalizePhoneNumber(_phoneCtrl.text.trim());
       context.read<AuthBloc>().add(
             AuthOTPRequested(
               email: email,
               companyName: companyName,
+              phoneNumber: normalizedPhone,
             ),
           );
     }
@@ -328,6 +330,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> with TickerProv
         position: _slideAnimation,
         child: Form(
           key: _formKey,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -367,7 +370,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> with TickerProv
                 controller: _phoneCtrl,
                 focusNode: _phoneFocus,
                 keyboardType: TextInputType.phone,
+                maxLength: 9,
                 validator: _validatePhone,
+                buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
                 style: const TextStyle(
                   fontSize: 16,
                   color: Color(0xFF2D2D2D),
@@ -539,8 +544,15 @@ class _RegistrationScreenState extends State<RegistrationScreen> with TickerProv
       return 'Le numéro est requis';
     }
     final cleaned = value.replaceAll(RegExp(r'[^0-9]'), '');
-    if (cleaned.length != 9 || !cleaned.startsWith('7')) {
-      return 'Format: 7X XXX XX XX';
+    if (cleaned.length != 9) {
+      return 'Le numéro doit avoir 9 chiffres';
+    }
+    
+    // Prefixes Orange (77, 78), Tigo/Free (76), Expresso (70), Promobile (75)
+    final validPrefixes = ['70', '75', '76', '77', '78'];
+    final prefix = cleaned.substring(0, 2);
+    if (!validPrefixes.contains(prefix)) {
+      return 'Numéro invalide (70, 75, 76, 77, 78)';
     }
     return null;
   }

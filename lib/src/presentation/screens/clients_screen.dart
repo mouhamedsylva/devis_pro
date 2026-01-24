@@ -1,7 +1,5 @@
 /// ClientsScreen – liste + ajout/modif/suppression (MVP).
-import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-
+import 'package:flutter_contacts/flutter_contacts.dart';
 import '../../core/constants/app_colors.dart';
 import '../../domain/entities/client.dart';
 import '../blocs/clients/client_bloc.dart';
@@ -32,6 +30,52 @@ class _ClientsScreenState extends State<ClientsScreen> {
     super.dispose();
   }
 
+  Future<void> _importFromContacts() async {
+    final bloc = context.read<ClientBloc>();
+    
+    // Demander la permission
+    if (await FlutterContacts.requestPermission(readonly: true)) {
+      // Ouvrir le sélecteur natif
+      final contact = await FlutterContacts.openExternalPicker();
+      
+      if (contact != null) {
+        // Re-récupérer le contact complet pour avoir les numéros si nécessaire 
+        // (openExternalPicker retourne souvent un contact partiel selon l'OS)
+        final fullContact = await FlutterContacts.getContact(contact.id);
+        
+        if (fullContact != null) {
+          final String name = fullContact.displayName;
+          final String phone = fullContact.phones.isNotEmpty 
+              ? fullContact.phones.first.number 
+              : '';
+              
+          if (name.isNotEmpty) {
+            bloc.add(ClientCreateRequested(
+              name: name,
+              phone: phone,
+              address: '',
+            ));
+            
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Client "$name" importé avec succès'),
+                  backgroundColor: AppColors.yellow,
+                ),
+              );
+            }
+          }
+        }
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Accès aux contacts refusé')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -54,13 +98,15 @@ class _ClientsScreenState extends State<ClientsScreen> {
                       )
                     : null,
               ),
-              onChanged: (searchTerm) {
-                // Event dispatched via listener, no need to dispatch here.
-              },
             );
           },
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.person_add_alt_1_rounded),
+            tooltip: 'Importer de mes contacts',
+            onPressed: _importFromContacts,
+          ),
           IconButton(
             icon: const Icon(Icons.filter_list),
             onPressed: () {

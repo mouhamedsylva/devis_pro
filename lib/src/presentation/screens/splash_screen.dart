@@ -4,7 +4,7 @@
 /// - Logo document/facture animé
 /// - Particules connectées représentant les données
 /// - Anneaux rotatifs symbolisant le workflow
-/// - Titre DEVISPRO avec effet premium
+/// - Titre DEVISPRO avec effet premium lettre par lettre
 /// - Icônes métier (calculatrice, signature, envoi)
 /// - Barre de progression avec étapes du processus
 
@@ -48,6 +48,12 @@ class _SplashScreenState extends State<SplashScreen>
   String _statusText = 'Initialisation du système...';
   Timer? _progressTimer;
   
+  // Pour l'animation lettre par lettre
+  int _devisLetterCount = 0;
+  int _proLetterCount = 0;
+  int _taglineLetterCount = 0;
+  Timer? _letterTimer;
+  
   final List<String> _statuses = [
     'Initialisation du système...',
     'Chargement des modèles de devis...',
@@ -67,6 +73,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void dispose() {
     _progressTimer?.cancel();
+    _letterTimer?.cancel();
     _logoEnterController.stop();
     _ringsEnterController.stop();
     _titleEnterController.stop();
@@ -87,10 +94,10 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   void _setupAnimations() {
-    // 1. Logo entrance (rotation d'entrée)
+    // 1. Logo entrance (rotation d'entrée) - RALENTI
     _logoEnterController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 2000), // 1200 → 2000
     );
     _logoEnterAnimation = CurvedAnimation(
       parent: _logoEnterController,
@@ -100,104 +107,136 @@ class _SplashScreenState extends State<SplashScreen>
       CurvedAnimation(parent: _logoEnterController, curve: Curves.easeOutBack),
     );
 
-    // 2. Rings entrance
+    // 2. Rings entrance - RALENTI
     _ringsEnterController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1000),
+      duration: const Duration(milliseconds: 1800), // 1000 → 1800
     );
     _ringsEnterAnimation = CurvedAnimation(
       parent: _ringsEnterController,
       curve: Curves.easeOutBack,
     );
 
-    // 3. Title entrance
+    // 3. Title entrance - RALENTI
     _titleEnterController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 1200), // 800 → 1200
     );
     _titleEnterAnimation = CurvedAnimation(
       parent: _titleEnterController,
       curve: Curves.easeOut,
     );
 
-    // 4. Progress section entrance
+    // 4. Progress section entrance - RALENTI
     _progressEnterController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 1000), // 600 → 1000
     );
     _progressEnterAnimation = CurvedAnimation(
       parent: _progressEnterController,
       curve: Curves.easeOut,
     );
 
-    // Continuous animations
+    // Continuous animations - RALENTI
     _logoFloatController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 4),
+      duration: const Duration(seconds: 6), // 4 → 6
     );
 
     _rotationController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 3),
+      duration: const Duration(seconds: 8), // 3 → 8
     );
 
     _glitchController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 5),
+      duration: const Duration(seconds: 7), // 5 → 7
     );
 
     _fadeController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 1000), // 800 → 1000
     );
   }
 
   Future<void> _startAnimationSequence() async {
-    // 1. Logo + cercle arrivent avec rotation (1.2s)
-    await Future.delayed(const Duration(milliseconds: 300));
+    // 1. Logo + cercle arrivent avec rotation (2s)
+    await Future.delayed(const Duration(milliseconds: 500)); // 300 → 500
     if (!mounted) return;
     _logoEnterController.forward();
     
-    // 2. Anneaux arrivent en tournant (après 0.6s)
-    await Future.delayed(const Duration(milliseconds: 600));
+    // 2. Anneaux arrivent en tournant (après 1s)
+    await Future.delayed(const Duration(milliseconds: 1000)); // 600 → 1000
     if (!mounted) return;
     _ringsEnterController.forward();
     _rotationController.repeat(); // Commencer la rotation continue
     
-    // 3. Titre arrive (après 0.5s)
-    await Future.delayed(const Duration(milliseconds: 500));
+    // 3. Titre arrive avec animation lettre par lettre (après 0.8s)
+    await Future.delayed(const Duration(milliseconds: 800)); // 500 → 800
     if (!mounted) return;
     _titleEnterController.forward();
+    _startLetterByLetterAnimation();
     
-    // 4. Progress arrive et démarre (après 0.4s)
-    await Future.delayed(const Duration(milliseconds: 400));
+    // 4. Progress arrive et démarre (après 1.2s)
+    await Future.delayed(const Duration(milliseconds: 1200)); // 400 → 1200
     if (!mounted) return;
     _progressEnterController.forward();
+    
+    // Attendre que le titre soit complètement affiché avant de démarrer le progress
+    await Future.delayed(const Duration(milliseconds: 800));
+    if (!mounted) return;
     _startProgressAnimation();
     
     // Démarrer les animations continues
-    await Future.delayed(const Duration(milliseconds: 200));
+    await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
     _logoFloatController.repeat();
     _glitchController.repeat();
+  }
+
+  void _startLetterByLetterAnimation() {
+    const devisText = 'DEVIS';
+    const proText = 'PRO';
+    const taglineText = 'GÉNÉRATEUR DE DEVIS PROFESSIONNEL';
+    
+    _letterTimer = Timer.periodic(const Duration(milliseconds: 80), (timer) {
+      setState(() {
+        // Animer "DEVIS" d'abord
+        if (_devisLetterCount < devisText.length) {
+          _devisLetterCount++;
+        }
+        // Puis "PRO"
+        else if (_proLetterCount < proText.length) {
+          _proLetterCount++;
+        }
+        // Enfin le tagline
+        else if (_taglineLetterCount < taglineText.length) {
+          _taglineLetterCount++;
+        }
+        // Terminé
+        else {
+          timer.cancel();
+        }
+      });
+    });
   }
 
   void _startProgressAnimation() {
     int statusIndex = 0;
     double targetProgress = 0.0;
     
-    // Animation fluide avec interpolation
-    _progressTimer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
+    // Animation fluide avec interpolation RALENTIE
+    _progressTimer = Timer.periodic(const Duration(milliseconds: 80), (timer) { // 50 → 80
       setState(() {
-        // Incrément du progrès cible
-        targetProgress += (math.Random().nextDouble() * 8 + 2) / 100;
+        // Incrément du progrès cible RÉDUIT pour plus de fluidité
+        targetProgress += (math.Random().nextDouble() * 4 + 1) / 100; // (8+2) → (4+1)
         
         if (targetProgress >= 1.0) {
           targetProgress = 1.0;
         }
         
-        // Interpolation fluide vers la cible
-        _progress += (targetProgress - _progress) * 0.15;
+        // Interpolation fluide vers la cible PLUS DOUCE
+        _progress += (targetProgress - _progress) * 0.08; // 0.15 → 0.08
         
         if (_progress >= 0.99 && targetProgress >= 1.0) {
           _progress = 1.0;
@@ -206,7 +245,7 @@ class _SplashScreenState extends State<SplashScreen>
           
           if (mounted) {
             _fadeController.forward().then((_) {
-              Future.delayed(const Duration(milliseconds: 500), () {
+              Future.delayed(const Duration(milliseconds: 800), () { // 500 → 800
                 if (mounted) {
                   Navigator.of(context).pushReplacement(
                     MaterialPageRoute(
@@ -288,15 +327,7 @@ class _SplashScreenState extends State<SplashScreen>
                               children: [
                                 _buildBrandTitle(),
                                 const SizedBox(height: 8),
-                                Text(
-                                  'GÉNÉRATEUR DE DEVIS PROFESSIONNEL',
-                                  style: TextStyle(
-                                    color: AppColors.yellow,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 3,
-                                  ),
-                                ),
+                                _buildTagline(),
                               ],
                             ),
                           ],
@@ -363,7 +394,7 @@ class _SplashScreenState extends State<SplashScreen>
           child: Transform.scale(
             scale: enterValue,
             child: Transform.rotate(
-              angle: rotation * (index == 1 ? 1.0 : 1.33) + enterRotation * (reverse ? -1 : 1),
+              angle: rotation * (index == 1 ? 0.5 : 0.7) + enterRotation * (reverse ? -1 : 1), // Rotation plus lente
               child: Container(
                 width: index == 1 ? 280 : 320,
                 height: index == 1 ? 180 : 200,
@@ -398,8 +429,8 @@ class _SplashScreenState extends State<SplashScreen>
       animation: _logoFloatController,
       builder: (context, child) {
         final floatProgress = _logoFloatController.value;
-        final rotateY = math.sin(floatProgress * 2 * math.pi) * 0.1;
-        final rotateX = math.cos(floatProgress * 2 * math.pi) * 0.1;
+        final rotateY = math.sin(floatProgress * 2 * math.pi) * 0.08; // 0.1 → 0.08
+        final rotateX = math.cos(floatProgress * 2 * math.pi) * 0.08; // 0.1 → 0.08
         
         final enterValue = _logoEnterAnimation.value.clamp(0.0, 1.0);
         final enterRotation = _logoRotationAnimation.value;
@@ -518,6 +549,9 @@ class _SplashScreenState extends State<SplashScreen>
         final enterValue = _titleEnterAnimation.value.clamp(0.0, 1.0);
         final enterOffset = (1 - enterValue) * 30;
         
+        const devisText = 'DEVIS';
+        const proText = 'PRO';
+        
         return Opacity(
           opacity: enterValue,
           child: Transform.translate(
@@ -525,6 +559,7 @@ class _SplashScreenState extends State<SplashScreen>
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                // DEVIS avec animation lettre par lettre
                 Transform.translate(
                   offset: shouldGlitch 
                       ? Offset(
@@ -538,18 +573,37 @@ class _SplashScreenState extends State<SplashScreen>
                           ? [AppColors.yellow, const Color(0xFFFFD700)]
                           : [AppColors.yellow, AppColors.yellow],
                     ).createShader(bounds),
-                    child: const Text(
-                      'DEVIS',
-                      style: TextStyle(
-                        fontSize: 56,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                        letterSpacing: 2,
+                    child: Row(
+                      children: List.generate(
+                        _devisLetterCount,
+                        (index) => TweenAnimationBuilder<double>(
+                          tween: Tween(begin: 0.0, end: 1.0),
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeOut,
+                          builder: (context, value, child) {
+                            return Transform.translate(
+                              offset: Offset(0, (1 - value) * 20),
+                              child: Opacity(
+                                opacity: value,
+                                child: Text(
+                                  devisText[index],
+                                  style: const TextStyle(
+                                    fontSize: 56,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
+                                    letterSpacing: 2,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                       ),
                     ),
                   ),
                 ),
                 const SizedBox(width: 12),
+                // PRO avec animation lettre par lettre
                 Transform.translate(
                   offset: shouldGlitch 
                       ? Offset(
@@ -557,13 +611,31 @@ class _SplashScreenState extends State<SplashScreen>
                           (math.Random().nextDouble() - 0.5) * 4,
                         )
                       : Offset.zero,
-                  child: const Text(
-                    'PRO',
-                    style: TextStyle(
-                      fontSize: 56,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                      letterSpacing: 2,
+                  child: Row(
+                    children: List.generate(
+                      _proLetterCount,
+                      (index) => TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0.0, end: 1.0),
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeOut,
+                        builder: (context, value, child) {
+                          return Transform.translate(
+                            offset: Offset(0, (1 - value) * 20),
+                            child: Opacity(
+                              opacity: value,
+                              child: Text(
+                                proText[index],
+                                style: const TextStyle(
+                                  fontSize: 56,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white,
+                                  letterSpacing: 2,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ),
@@ -572,6 +644,42 @@ class _SplashScreenState extends State<SplashScreen>
           ),
         );
       },
+    );
+  }
+
+  Widget _buildTagline() {
+    const taglineText = 'GÉNÉRATEUR DE DEVIS PROFESSIONNEL';
+    
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(
+        _taglineLetterCount,
+        (index) {
+          final char = taglineText[index];
+          return TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.0, end: 1.0),
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+            builder: (context, value, child) {
+              return Transform.translate(
+                offset: Offset(0, (1 - value) * 10),
+                child: Opacity(
+                  opacity: value,
+                  child: Text(
+                    char,
+                    style: TextStyle(
+                      color: AppColors.yellow,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 3,
+                    ),
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 
@@ -586,23 +694,31 @@ class _SplashScreenState extends State<SplashScreen>
           width: 350,
           child: Column(
             children: [
-              // Circular progress
+              // Circular progress avec animation fluide
               SizedBox(
                 width: 100,
                 height: 100,
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    CustomPaint(
-                      size: const Size(100, 100),
-                      painter: CircularProgressPainter(
-                        progress: _progress,
-                        color: AppColors.yellow,
-                      ),
+                    TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0.0, end: _progress),
+                      duration: const Duration(milliseconds: 500), // Animation fluide
+                      curve: Curves.easeInOut,
+                      builder: (context, value, child) {
+                        return CustomPaint(
+                          size: const Size(100, 100),
+                          painter: CircularProgressPainter(
+                            progress: value,
+                            color: AppColors.yellow,
+                          ),
+                        );
+                      },
                     ),
                     TweenAnimationBuilder<int>(
                       tween: IntTween(begin: 0, end: (_progress * 100).toInt()),
-                      duration: const Duration(milliseconds: 300),
+                      duration: const Duration(milliseconds: 500), // Animation fluide
+                      curve: Curves.easeInOut,
                       builder: (context, value, child) {
                         return Text(
                           '$value%',
@@ -620,36 +736,41 @@ class _SplashScreenState extends State<SplashScreen>
               
               const SizedBox(height: 24),
               
-              // Linear progress bar
+              // Linear progress bar avec animation fluide
               Container(
                 height: 4,
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: AnimatedFractionallySizedBox(
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeOut,
-                  alignment: Alignment.centerLeft,
-                  widthFactor: _progress,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [
-                          Color(0xFFFDB913),
-                          Color(0xFFFFD700),
-                          Color(0xFFFDB913),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(10),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.yellow.withOpacity(0.6),
-                          blurRadius: 20,
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0.0, end: _progress),
+                  duration: const Duration(milliseconds: 500), // Animation fluide
+                  curve: Curves.easeInOut,
+                  builder: (context, value, child) {
+                    return FractionallySizedBox(
+                      alignment: Alignment.centerLeft,
+                      widthFactor: value,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color(0xFFFDB913),
+                              Color(0xFFFFD700),
+                              Color(0xFFFDB913),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.yellow.withOpacity(0.6),
+                              blurRadius: 20,
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
+                      ),
+                    );
+                  },
                 ),
               ),
               
@@ -657,7 +778,7 @@ class _SplashScreenState extends State<SplashScreen>
               
               // Status text
               AnimatedSwitcher(
-                duration: const Duration(milliseconds: 400),
+                duration: const Duration(milliseconds: 500), // 400 → 500
                 transitionBuilder: (child, animation) {
                   return FadeTransition(
                     opacity: animation,
@@ -721,15 +842,15 @@ class _SplashScreenState extends State<SplashScreen>
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  // Ripple effect
+                  // Ripple effect plus lent
                   Transform.scale(
-                    scale: 1.0 + (_rotationController.value * 0.5),
+                    scale: 1.0 + (_rotationController.value * 0.3), // 0.5 → 0.3
                     child: Container(
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
                           color: AppColors.yellow.withOpacity(
-                            (1 - _rotationController.value) * 0.5,
+                            (1 - _rotationController.value) * 0.3, // 0.5 → 0.3
                           ),
                           width: 2,
                         ),
@@ -821,8 +942,8 @@ class Particle {
     x = math.Random().nextDouble() * 1000;
     y = math.Random().nextDouble() * 1000;
     size = math.Random().nextDouble() * 2.5 + 0.8;
-    speedX = (math.Random().nextDouble() - 0.5) * 0.6;
-    speedY = (math.Random().nextDouble() - 0.5) * 0.6;
+    speedX = (math.Random().nextDouble() - 0.5) * 0.4; // 0.6 → 0.4 (plus lent)
+    speedY = (math.Random().nextDouble() - 0.5) * 0.4; // 0.6 → 0.4 (plus lent)
     opacity = math.Random().nextDouble() * 0.4 + 0.1;
   }
 

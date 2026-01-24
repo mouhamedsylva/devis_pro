@@ -96,6 +96,22 @@ class OTPRepositoryImpl implements OTPRepository {
   }
 
   @override
+  Future<void> sendWelcomeEmail({
+    required String email,
+    required String companyName,
+  }) async {
+    try {
+      await _emailService.sendWelcomeEmail(
+        recipientEmail: email,
+        recipientName: companyName, // Utilise le nom de l'entreprise comme nom de destinataire par défaut
+        companyName: companyName,
+      );
+    } catch (e) {
+      print('❌ Erreur envoi email bienvenue : $e');
+    }
+  }
+
+  @override
   Future<void> clearExpiredOTPs() async {
     final now = DateTime.now();
     await _db.delete(

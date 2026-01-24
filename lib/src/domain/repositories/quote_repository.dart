@@ -26,11 +26,13 @@ class QuoteItemDraft {
     required this.unitPrice,
     required this.quantity,
     required this.vatRate,
+    this.unit,
   });
 
   final String productName;
   final double unitPrice;
   final double quantity;
   final double vatRate;
+  final String? unit;
 }
 

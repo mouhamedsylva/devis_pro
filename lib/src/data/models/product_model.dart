@@ -8,6 +8,7 @@ class ProductModel {
       name: (map['name'] as String?) ?? '',
       unitPrice: (map['unitPrice'] as num).toDouble(),
       vatRate: (map['vatRate'] as num).toDouble(),
+      unit: (map['unit'] as String?) ?? 'Unité',
     );
   }
 
@@ -17,6 +18,7 @@ class ProductModel {
       'name': p.name,
       'unitPrice': p.unitPrice,
       'vatRate': p.vatRate,
+      'unit': p.unit,
     };
   }
 
@@ -24,11 +26,13 @@ class ProductModel {
     required String name,
     required double unitPrice,
     required double vatRate,
+    required String unit,
   }) {
     return {
       'name': name,
       'unitPrice': unitPrice,
       'vatRate': vatRate,
+      'unit': unit,
     };
   }
 }

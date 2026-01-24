@@ -19,6 +19,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
+  final _formKey = GlobalKey<FormState>();
   final _phoneCtrl = TextEditingController();
   final _phoneFocus = FocusNode();
   TabController? _tabController;
@@ -66,7 +67,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
     final isWeb = screenWidth > 600;
 
     return BlocListener<AuthBloc, AuthState>(
@@ -285,7 +285,11 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                   // Onglet CONNEXION
                                   SingleChildScrollView(
                                     padding: EdgeInsets.all(isWeb ? 40 : 30),
-                                    child: _buildConnexionTab(context, isWeb),
+                                    child: Form(
+                                      key: _formKey,
+                                      autovalidateMode: AutovalidateMode.onUserInteraction,
+                                      child: _buildConnexionTab(context, isWeb),
+                                    ),
                                   ),
 
                                   // Onglet INSCRIPTION (vide car navigation automatique)
@@ -329,10 +333,13 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         const SizedBox(height: 12),
 
         // Indicatif + Champ téléphone
-        TextField(
+        TextFormField(
           controller: _phoneCtrl,
           focusNode: _phoneFocus,
           keyboardType: TextInputType.phone,
+          maxLength: 9,
+          validator: _validatePhone,
+          buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
           style: const TextStyle(
             fontSize: 16,
             color: Color(0xFF2D2D2D),
@@ -360,7 +367,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                   Icons.phone_android,
                   color: Color(0xFF9E9E9E),
                 ),
-                if (!_phoneFocus.hasFocus) ...[
+                if (!_phoneFocus.hasFocus && _phoneCtrl.text.isEmpty) ...[
                   const SizedBox(width: 8),
                   const Text(
                     '77 123 45 67',
@@ -387,16 +394,20 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               borderRadius: BorderRadius.circular(0),
               borderSide: BorderSide(color: AppColors.yellow, width: 2),
             ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(0),
+              borderSide: const BorderSide(color: Color(0xFFD32F2F)),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(0),
+              borderSide: const BorderSide(color: Color(0xFFD32F2F), width: 2),
+            ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
               vertical: 16,
             ),
           ),
-          onTap: () {
-            // Force rebuild pour afficher +221
-            setState(() {});
-          },
-          onEditingComplete: () {
+          onChanged: (_) {
             setState(() {});
           },
         ),
@@ -411,43 +422,12 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               onPressed: loading
                   ? null
                   : () {
-                      // Validation du numéro de téléphone
-                      if (_phoneCtrl.text.trim().isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Row(
-                              children: [
-                                const Icon(Icons.warning_amber_rounded, color: Colors.white),
-                                const SizedBox(width: 12),
-                                const Expanded(
-                                  child: Text(
-                                    'Veuillez entrer votre numéro de téléphone',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            backgroundColor: const Color(0xFFFF9800),
-                            duration: const Duration(seconds: 3),
-                            behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            margin: const EdgeInsets.all(16),
-                          ),
-                        );
-                        return;
+                      if (_formKey.currentState!.validate()) {
+                        final phoneNumber = Formatters.normalizePhoneNumber(_phoneCtrl.text.trim());
+                        context.read<AuthBloc>().add(
+                              AuthLoginOTPRequested(phoneNumber: phoneNumber),
+                            );
                       }
-                      
-                      // ✨ Demander l'envoi d'OTP pour connexion
-                      // Normaliser le numéro de téléphone pour qu'il soit cohérent
-                      final phoneNumber = Formatters.normalizePhoneNumber(_phoneCtrl.text.trim());
-                      context.read<AuthBloc>().add(
-                            AuthLoginOTPRequested(phoneNumber: phoneNumber),
-                          );
                     },
               text: loading ? 'ENVOI DU CODE...' : 'SE CONNECTER',
               enabled: !loading,
@@ -468,5 +448,23 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         ),
       ],
     );
+  }
+
+  String? _validatePhone(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Le numéro est requis';
+    }
+    final cleaned = value.replaceAll(RegExp(r'[^0-9]'), '');
+    if (cleaned.length != 9) {
+      return 'Le numéro doit avoir 9 chiffres';
+    }
+    
+    // Prefixes Orange (77, 78), Tigo/Free (76), Expresso (70), Promobile (75)
+    final validPrefixes = ['70', '75', '76', '77', '78'];
+    final prefix = cleaned.substring(0, 2);
+    if (!validPrefixes.contains(prefix)) {
+      return 'Numéro invalide (70, 75, 76, 77, 78)';
+    }
+    return null;
   }
 }

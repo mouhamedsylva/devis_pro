@@ -9,7 +9,14 @@ import '../blocs/template/template_state.dart';
 
 /// Écran de création d'un template personnalisé.
 class TemplateEditorScreen extends StatefulWidget {
-  const TemplateEditorScreen({super.key});
+  final QuoteTemplate? initialTemplate;
+  final List<TemplateItem>? initialItems;
+
+  const TemplateEditorScreen({
+    super.key,
+    this.initialTemplate,
+    this.initialItems,
+  });
 
   @override
   State<TemplateEditorScreen> createState() => _TemplateEditorScreenState();
@@ -18,13 +25,13 @@ class TemplateEditorScreen extends StatefulWidget {
 class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  final _nameCtrl = TextEditingController();
-  final _descCtrl = TextEditingController();
-  final _notesCtrl = TextEditingController();
-  final _validityCtrl = TextEditingController();
-  final _termsCtrl = TextEditingController();
+  late final TextEditingController _nameCtrl;
+  late final TextEditingController _descCtrl;
+  late final TextEditingController _notesCtrl;
+  late final TextEditingController _validityCtrl;
+  late final TextEditingController _termsCtrl;
 
-  String _category = 'BTP';
+  late String _category;
   final List<_EditableTemplateItem> _items = [];
 
   bool _submitted = false;
@@ -37,6 +44,31 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     'Service',
     'Autre',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    final t = widget.initialTemplate;
+    _nameCtrl = TextEditingController(text: t?.name ?? '');
+    _descCtrl = TextEditingController(text: t?.description ?? '');
+    _notesCtrl = TextEditingController(text: t?.notes ?? '');
+    _validityCtrl = TextEditingController(text: t?.validityDays?.toString() ?? '');
+    _termsCtrl = TextEditingController(text: t?.termsAndConditions ?? '');
+    _category = t?.category ?? 'BTP';
+
+    if (widget.initialItems != null) {
+      for (final item in widget.initialItems!) {
+        _items.add(_EditableTemplateItem(
+          productName: item.productName,
+          description: item.description,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          vatRate: item.vatRate,
+          unit: item.unit,
+        ));
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -96,12 +128,12 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     final validityDays = int.tryParse(_validityCtrl.text.trim());
 
     final template = QuoteTemplate(
-      id: 0,
+      id: widget.initialTemplate?.id ?? 0,
       name: name,
       description: description,
       category: _category,
       isCustom: true,
-      createdAt: DateTime.now(),
+      createdAt: widget.initialTemplate?.createdAt ?? DateTime.now(),
       notes: notes,
       validityDays: validityDays,
       termsAndConditions: terms,
@@ -112,27 +144,33 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
       final it = entry.value;
       return TemplateItem(
         id: 0,
-        templateId: 0,
+        templateId: template.id,
         productName: it.productName,
         description: it.description,
         quantity: it.quantity,
         unitPrice: it.unitPrice,
         vatRate: it.vatRate,
         displayOrder: displayOrder,
+        unit: it.unit,
       );
     }).toList();
 
-    context.read<TemplateBloc>().add(TemplateCreate(template, items));
+    if (widget.initialTemplate != null) {
+      context.read<TemplateBloc>().add(TemplateUpdate(template, items));
+    } else {
+      context.read<TemplateBloc>().add(TemplateCreate(template, items));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return BlocListener<TemplateBloc, TemplateState>(
       listener: (context, state) {
-        if (state is TemplateCreated) {
+        if (state is TemplateCreated || state is TemplateUpdated) {
+          final isUpdate = state is TemplateUpdated;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Template créé avec succès'),
+            SnackBar(
+              content: Text(isUpdate ? 'Modèle mis à jour' : 'Modèle créé avec succès'),
               backgroundColor: Colors.green,
             ),
           );
@@ -345,7 +383,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       title: Text(item.productName, style: const TextStyle(fontWeight: FontWeight.w700)),
       subtitle: Text(
-        '${item.quantity} × ${item.unitPrice.toStringAsFixed(0)} FCFA • TVA ${(item.vatRate * 100).toStringAsFixed(0)}%',
+        '${item.quantity} ${item.unit ?? ''} × ${item.unitPrice.toStringAsFixed(0)} FCFA • TVA ${(item.vatRate * 100).toStringAsFixed(0)}%',
       ),
       trailing: Wrap(
         spacing: 6,
@@ -405,13 +443,15 @@ class _EditableTemplateItem {
     required this.quantity,
     required this.unitPrice,
     required this.vatRate,
+    this.unit,
   });
 
   final String productName;
   final String description;
   final int quantity;
   final double unitPrice;
-  final double vatRate; // 0.18
+  final double vatRate;
+  final String? unit;
 }
 
 class _TemplateItemDialog extends StatefulWidget {
@@ -431,6 +471,7 @@ class _TemplateItemDialogState extends State<_TemplateItemDialog> {
   late final TextEditingController _qtyCtrl;
   late final TextEditingController _priceCtrl;
   late final TextEditingController _vatCtrl;
+  late final TextEditingController _unitCtrl;
 
   @override
   void initState() {
@@ -441,6 +482,7 @@ class _TemplateItemDialogState extends State<_TemplateItemDialog> {
     _qtyCtrl = TextEditingController(text: (init?.quantity ?? 1).toString());
     _priceCtrl = TextEditingController(text: (init?.unitPrice ?? 0).toStringAsFixed(0));
     _vatCtrl = TextEditingController(text: ((init?.vatRate ?? 0.18) * 100).toStringAsFixed(0));
+    _unitCtrl = TextEditingController(text: init?.unit ?? 'Unité');
   }
 
   @override
@@ -450,6 +492,7 @@ class _TemplateItemDialogState extends State<_TemplateItemDialog> {
     _qtyCtrl.dispose();
     _priceCtrl.dispose();
     _vatCtrl.dispose();
+    _unitCtrl.dispose();
     super.dispose();
   }
 
@@ -469,6 +512,7 @@ class _TemplateItemDialogState extends State<_TemplateItemDialog> {
         quantity: qty,
         unitPrice: unitPrice,
         vatRate: vatRate,
+        unit: _unitCtrl.text.trim(),
       ),
     );
   }
@@ -531,15 +575,31 @@ class _TemplateItemDialogState extends State<_TemplateItemDialog> {
                 ],
               ),
               const SizedBox(height: 10),
-              TextFormField(
-                controller: _vatCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'TVA (%)'),
-                validator: (v) {
-                  final n = double.tryParse((v ?? '').trim().replaceAll(',', '.'));
-                  if (n == null || n < 0 || n > 100) return '0-100';
-                  return null;
-                },
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _vatCtrl,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(labelText: 'TVA (%)'),
+                      validator: (v) {
+                        final n = double.tryParse((v ?? '').trim().replaceAll(',', '.'));
+                        if (n == null || n < 0 || n > 100) return '0-100';
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _unitCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Unité',
+                        hintText: 'Ex: m², kg...',
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

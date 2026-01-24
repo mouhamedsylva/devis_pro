@@ -19,6 +19,9 @@ import '../blocs/quotes/quote_bloc.dart';
 import '../blocs/template/template_bloc.dart';
 import '../blocs/template/template_event.dart';
 import '../blocs/template/template_state.dart';
+import '../widgets/quote_preview_dialog.dart';
+import '../../domain/repositories/company_repository.dart';
+import '../../domain/repositories/client_repository.dart';
 
 class QuoteEditorScreen extends StatefulWidget {
   const QuoteEditorScreen({super.key});
@@ -62,10 +65,6 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final totalHT = _lines.fold<double>(0, (sum, l) => sum + l.unitPrice * l.quantity);
-    final totalVAT = _lines.fold<double>(0, (sum, l) => sum + (l.unitPrice * l.quantity * l.vatRate));
-    final totalTTC = totalHT + totalVAT;
-
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
@@ -88,72 +87,102 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : Column(
+          : _buildEditorBody(),
+    );
+  }
+
+  Widget _buildEditorBody() {
+    return BlocListener<QuoteBloc, QuoteState>(
+      listener: (context, state) async {
+        if (state.status == QuoteStatus.success && state.createdQuote != null) {
+          final companyRepo = context.read<CompanyRepository>();
+          final company = await companyRepo.getCompany();
+          
+          if (!mounted) return;
+          
+          // Récupérer les items réels depuis le repo pour être sûr (ou utiliser _lines)
+          final quoteRepo = context.read<QuoteRepository>();
+          final items = await quoteRepo.listItems(state.createdQuote!.id);
+
+          if (!mounted) return;
+
+          await showDialog(
+            context: context,
+            builder: (_) => QuotePreviewDialog(
+              quote: state.createdQuote!,
+              items: items,
+              company: company,
+              // client: ... // Pas de client régulier ici car info saisie direct
+            ),
+          );
+          
+          if (mounted) {
+            Navigator.of(context).pop(); // Fermer l'éditeur après avoir fermé l'aperçu
+          }
+        }
+      },
+      child: _buildMainContent(),
+    );
+  }
+
+  Widget _buildMainContent() {
+    final totalHT = _lines.fold<double>(0, (sum, l) => sum + l.unitPrice * l.quantity);
+    final totalVAT = _lines.fold<double>(0, (sum, l) => sum + (l.unitPrice * l.quantity * l.vatRate));
+    final totalTTC = totalHT + totalVAT;
+
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Étape 1: Informations client
-                        _buildStepCard(
-                          stepNumber: 1,
-                          title: 'Informations du client',
-                          icon: Icons.person,
-                          child: _buildClientInput(),
-                        ),
-                        
-                        const SizedBox(height: 16),
-                        
-                        // Étape 2: Ajouter des lignes
-                        _buildStepCard(
-                          stepNumber: 2,
-                          title: 'Ajouter des articles',
-                          icon: Icons.shopping_cart,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton.icon(
-                                  onPressed: () => _addLineDialog(context),
-                                  icon: const Icon(Icons.add_circle_outline),
-                                  label: const Text('Ajouter un article'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.yellow,
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(vertical: 14),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    elevation: 0,
-                                  ),
-                                ),
-                              ),
-                              
-                              if (_lines.isNotEmpty) ...[
-                                const SizedBox(height: 16),
-                                _buildLinesList(),
-                              ],
-                            ],
+                _buildStepCard(
+                  stepNumber: 1,
+                  title: 'Informations du client',
+                  icon: Icons.person,
+                  child: _buildClientInput(),
+                ),
+                const SizedBox(height: 16),
+                _buildStepCard(
+                  stepNumber: 2,
+                  title: 'Ajouter des articles',
+                  icon: Icons.shopping_cart,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () => _addLineDialog(context),
+                          icon: const Icon(Icons.add_circle_outline),
+                          label: const Text('Ajouter un article'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.yellow,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            elevation: 0,
                           ),
                         ),
-                        
+                      ),
+                      if (_lines.isNotEmpty) ...[
                         const SizedBox(height: 16),
-                        
-                        // Résumé des totaux
-                        if (_lines.isNotEmpty) _buildTotalsSummary(totalHT, totalVAT, totalTTC),
+                        _buildLinesList(),
                       ],
-                    ),
+                    ],
                   ),
                 ),
-                
-                // Footer avec bouton de création
-                _buildFooter(totalTTC),
+                const SizedBox(height: 16),
+                if (_lines.isNotEmpty) _buildTotalsSummary(totalHT, totalVAT, totalTTC),
               ],
             ),
+          ),
+        ),
+        _buildFooter(totalTTC),
+      ],
     );
   }
 
@@ -572,6 +601,22 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
   // _buildClientSelector() supprimé - remplacé par _buildClientInput()
 
   Widget _buildLinesList() {
+    if (_lines.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 40),
+        child: Column(
+          children: [
+            Icon(Icons.add_shopping_cart, size: 48, color: Colors.grey[300]),
+            const SizedBox(height: 16),
+            Text(
+              'Aucun article dans ce devis',
+              style: TextStyle(color: Colors.grey[500], fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Column(
       children: List.generate(_lines.length, (i) {
         final l = _lines[i];
@@ -583,56 +628,119 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
           key: ValueKey('${l.name}_$i'),
           direction: DismissDirection.endToStart,
           background: Container(
-            margin: const EdgeInsets.only(bottom: 8),
+            margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.symmetric(horizontal: 20),
             decoration: BoxDecoration(
-              color: Colors.red,
-              borderRadius: BorderRadius.circular(12),
+              color: const Color(0xFFD32F2F),
+              borderRadius: BorderRadius.circular(16),
             ),
             alignment: Alignment.centerRight,
-            child: const Icon(Icons.delete, color: Colors.white),
+            child: const Icon(Icons.delete_outline, color: Colors.white),
           ),
           onDismissed: (_) => setState(() => _lines.removeAt(i)),
           child: Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            padding: const EdgeInsets.all(16),
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.grey[50],
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey[200]!),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFEEEEEE)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.02),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child: Text(
-                        l.name,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            l.name,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 16,
+                              color: Color(0xFF2D2D2D),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'PU: ${Formatters.moneyCfa(l.unitPrice)} ${l.unit != null ? '/ ${l.unit}' : ''}',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    Text(
-                      Formatters.moneyCfa(lineTotal),
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 16,
-                        color: AppColors.yellow,
-                      ),
+                    const SizedBox(width: 8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          Formatters.moneyCfa(lineTotal),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 17,
+                            color: AppColors.yellow,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'TVA ${(l.vatRate * 100).toStringAsFixed(0)}%',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey[500],
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const Divider(height: 24),
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _buildInfoChip('Qté: ${l.quantity}', Icons.format_list_numbered),
-                    const SizedBox(width: 8),
-                    _buildInfoChip('PU: ${Formatters.moneyCfa(l.unitPrice)}', Icons.attach_money),
-                    const SizedBox(width: 8),
-                    _buildInfoChip('TVA: ${(l.vatRate * 100).toStringAsFixed(0)}%', Icons.percent),
+                    Row(
+                      children: [
+                        const Icon(Icons.inventory_2_outlined, size: 14, color: Colors.grey),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Quantité : ',
+                          style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                        ),
+                        Text(
+                          '${l.quantity} ${l.unit ?? ''}',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF2D2D2D),
+                          ),
+                        ),
+                      ],
+                    ),
+                    InkWell(
+                      onTap: () => setState(() => _lines.removeAt(i)),
+                      child: Text(
+                        'Supprimer',
+                        style: TextStyle(
+                          color: Colors.red[400],
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -787,6 +895,7 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
                                 unitPrice: l.unitPrice,
                                 quantity: l.quantity,
                                 vatRate: l.vatRate,
+                                unit: l.unit,
                               ),
                             )
                             .toList(growable: false);
@@ -794,7 +903,7 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
                         // Note: clientId est null car on n'utilise plus la table clients
                         context.read<QuoteBloc>().add(
                               QuoteCreateRequested(
-                                clientId: null, // Pas de clientId - informations dans le devis
+                                clientId: null,
                                 clientName: _clientNameController.text,
                                 clientPhone: _clientPhoneController.text,
                                 date: DateTime.now(),
@@ -802,7 +911,6 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
                                 status: 'Brouillon',
                               ),
                             );
-                        Navigator.of(context).pop();
                       }
                     : null,
                 style: ElevatedButton.styleFrom(
@@ -849,32 +957,53 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
   }
 
   Future<void> _addLineDialog(BuildContext context) async {
-    // Mode: 'select' ou 'create'
-    String mode = _products.isNotEmpty ? 'select' : 'create';
-    int? productId = _products.isNotEmpty ? _products.first.id : null;
+    // Liste des unités courantes
+    final List<String> units = ['Unité', 'm', 'm²', 'm³', 'kg', 'Litre', 'Heure', 'Jour', 'Forfait', 'Sac', 'Voyage'];
     
-    // Contrôleurs pour création de produit
+    // État local du dialogue
+    String selectedUnit = 'Unité';
+    Product? selectedProduct;
     final nameCtrl = TextEditingController();
     final priceCtrl = TextEditingController();
     final vatCtrl = TextEditingController(text: '18');
     final qtyCtrl = TextEditingController(text: '1');
+    
+    // Pour les calculs en temps réel
+    double lineHT = 0;
+    double lineVAT = 0;
+    double lineTTC = 0;
+
+    void updateTotals(StateSetter setDialogState) {
+      final price = double.tryParse(priceCtrl.text.replaceAll(',', '.')) ?? 0;
+      final qty = double.tryParse(qtyCtrl.text.replaceAll(',', '.')) ?? 0;
+      final vat = (double.tryParse(vatCtrl.text.replaceAll(',', '.')) ?? 0) / 100;
+      
+      setDialogState(() {
+        lineHT = price * qty;
+        lineVAT = lineHT * vat;
+        lineTTC = lineHT + lineVAT;
+      });
+    }
 
     final result = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (sheetContext) => StatefulBuilder(
-        builder: (builderContext, setDialogState) => Container(
-          height: MediaQuery.of(sheetContext).size.height * 0.9, // MediaQuery pour éviter l'erreur RenderBox
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-                  // Barre de drag
-                  Container(
+        builder: (builderContext, setDialogState) {
+          return Container(
+            padding: EdgeInsets.only(bottom: MediaQuery.of(sheetContext).viewInsets.bottom),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Barre de drag
+                Center(
+                  child: Container(
                     margin: const EdgeInsets.only(top: 12, bottom: 8),
                     width: 40,
                     height: 4,
@@ -883,468 +1012,296 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                  
-                  // Header
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [AppColors.yellow, AppColors.yellow.withOpacity(0.8)],
+                ),
+                
+                // Header
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppColors.yellow.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(Icons.add_shopping_cart, color: AppColors.yellow),
                       ),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.3),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(Icons.add_shopping_cart, color: Colors.white),
-                        ),
-                        const SizedBox(width: 12),
-                        const Expanded(
-                          child: Text(
-                            'Ajouter un article',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  
-                  // Contenu scrollable
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(20), // Padding fixe pour éviter les erreurs
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Toggle entre sélection et création
-                        if (_products.isNotEmpty) ...[
-                          Row(
-                            children: [
-                              Expanded(
-                                child: InkWell(
-                                  onTap: () => setDialogState(() => mode = 'select'),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: mode == 'select' 
-                                          ? AppColors.yellow.withOpacity(0.1)
-                                          : Colors.grey[100],
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(
-                                        color: mode == 'select' 
-                                            ? AppColors.yellow
-                                            : Colors.grey[300]!,
-                                        width: mode == 'select' ? 2 : 1,
-                                      ),
-                                    ),
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          Icons.inventory_2_outlined,
-                                          color: mode == 'select' 
-                                              ? AppColors.yellow
-                                              : Colors.grey[600],
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          'Produit existant',
-                                          style: TextStyle(
-                                            fontWeight: mode == 'select' 
-                                                ? FontWeight.bold
-                                                : FontWeight.normal,
-                                            color: mode == 'select' 
-                                                ? AppColors.yellow
-                                                : Colors.grey[700],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: InkWell(
-                                  onTap: () => setDialogState(() => mode = 'create'),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: mode == 'create' 
-                                          ? AppColors.yellow.withOpacity(0.1)
-                                          : Colors.grey[100],
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(
-                                        color: mode == 'create' 
-                                            ? AppColors.yellow
-                                            : Colors.grey[300]!,
-                                        width: mode == 'create' ? 2 : 1,
-                                      ),
-                                    ),
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          Icons.add_circle_outline,
-                                          color: mode == 'create' 
-                                              ? AppColors.yellow
-                                              : Colors.grey[600],
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          'Nouveau produit',
-                                          style: TextStyle(
-                                            fontWeight: mode == 'create' 
-                                                ? FontWeight.bold
-                                                : FontWeight.normal,
-                                            color: mode == 'create' 
-                                                ? AppColors.yellow
-                                                : Colors.grey[700],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 20),
-                        ],
-                        
-                        // Contenu selon le mode
-                        if (mode == 'select') ...[
-                          // Sélection d'un produit existant
-                          const Text(
-                            'Produit/Service',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black87,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Colors.grey[50],
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.grey[300]!),
-                            ),
-                            child: DropdownButtonFormField<int>(
-                              value: productId,
-                              decoration: const InputDecoration(
-                                border: InputBorder.none,
-                                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                prefixIcon: Icon(Icons.inventory_2_outlined),
-                              ),
-                              items: _products.map((p) {
-                                return DropdownMenuItem(
-                                  value: p.id,
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        p.name,
-                                        style: const TextStyle(fontWeight: FontWeight.w600),
-                                      ),
-                                      Text(
-                                        '${Formatters.moneyCfa(p.unitPrice)} • TVA: ${(p.vatRate * 100).toStringAsFixed(0)}%',
-                                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }).toList(),
-                              onChanged: (v) => setDialogState(() => productId = v),
-                            ),
-                          ),
-                        ] else ...[
-                          // Création d'un nouveau produit
-                          const Text(
-                            'Nom du produit/service',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black87,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          TextField(
-                            controller: nameCtrl,
-                            decoration: InputDecoration(
-                              filled: true,
-                              fillColor: Colors.grey[50],
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: Colors.grey[300]!),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: Colors.grey[300]!),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: AppColors.yellow, width: 2),
-                              ),
-                              prefixIcon: const Icon(Icons.label_outline),
-                              hintText: 'Ex: Consultation, Installation...',
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'Prix unitaire (FCFA)',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.black87,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    TextField(
-                                      controller: priceCtrl,
-                                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                      decoration: InputDecoration(
-                                        filled: true,
-                                        fillColor: Colors.grey[50],
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(12),
-                                          borderSide: BorderSide(color: Colors.grey[300]!),
-                                        ),
-                                        enabledBorder: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(12),
-                                          borderSide: BorderSide(color: Colors.grey[300]!),
-                                        ),
-                                        focusedBorder: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(12),
-                                          borderSide: BorderSide(color: AppColors.yellow, width: 2),
-                                        ),
-                                        prefixIcon: const Icon(Icons.attach_money),
-                                        suffixText: 'FCFA',
-                                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'TVA (%)',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.black87,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    TextField(
-                                      controller: vatCtrl,
-                                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                      decoration: InputDecoration(
-                                        filled: true,
-                                        fillColor: Colors.grey[50],
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(12),
-                                          borderSide: BorderSide(color: Colors.grey[300]!),
-                                        ),
-                                        enabledBorder: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(12),
-                                          borderSide: BorderSide(color: Colors.grey[300]!),
-                                        ),
-                                        focusedBorder: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(12),
-                                          borderSide: BorderSide(color: AppColors.yellow, width: 2),
-                                        ),
-                                        prefixIcon: const Icon(Icons.percent),
-                                        suffixText: '%',
-                                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                        
-                        const SizedBox(height: 20),
-                        
-                        // Quantité (toujours affichée)
-                        const Text(
-                          'Quantité',
+                      const SizedBox(width: 16),
+                      const Expanded(
+                        child: Text(
+                          'Nouvel Article',
                           style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black87,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF2D2D2D),
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller: qtyCtrl,
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          decoration: InputDecoration(
-                            filled: true,
-                            fillColor: Colors.grey[50],
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: Colors.grey[300]!),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: Colors.grey[300]!),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: AppColors.yellow, width: 2),
-                            ),
-                            prefixIcon: const Icon(Icons.format_list_numbered),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                          ),
-                        ),
-                        ],
                       ),
-                    ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(sheetContext),
+                      ),
+                    ],
                   ),
-                  
-                  // Actions
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[50],
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
+                ),
+                const Divider(height: 1),
+
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(sheetContext),
-                          child: Text(
-                            'Annuler',
-                            style: TextStyle(color: Colors.grey[600]),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () {
-                              // Validation
-                              if (mode == 'select' && productId == null) {
-                                ScaffoldMessenger.of(builderContext).showSnackBar(
-                                  const SnackBar(content: Text('Veuillez sélectionner un produit')),
-                                );
-                                return;
-                              }
-                              if (mode == 'create') {
-                                if (nameCtrl.text.trim().isEmpty) {
-                                  ScaffoldMessenger.of(builderContext).showSnackBar(
-                                    const SnackBar(content: Text('Le nom du produit est requis')),
-                                  );
-                                  return;
-                                }
-                                if (priceCtrl.text.trim().isEmpty) {
-                                  ScaffoldMessenger.of(builderContext).showSnackBar(
-                                    const SnackBar(content: Text('Le prix est requis')),
-                                  );
-                                  return;
-                                }
-                              }
-                              
-                              Navigator.pop(sheetContext, {
-                                'mode': mode,
-                                'productId': productId,
-                                'name': nameCtrl.text.trim(),
-                                'price': priceCtrl.text.trim(),
-                                'vat': vatCtrl.text.trim(),
-                                'quantity': qtyCtrl.text.trim(),
-                              });
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.yellow,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
+                        // Recherche / Saisie Nom
+                        const Text('NOM DE L\'ARTICLE / SERICE',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.grey, letterSpacing: 1)),
+                        const SizedBox(height: 8),
+                        Autocomplete<Product>(
+                          displayStringForOption: (p) => p.name,
+                          optionsBuilder: (TextEditingValue textEditingValue) {
+                            if (textEditingValue.text.isEmpty) return const Iterable<Product>.empty();
+                            return _products.where((p) => p.name.toLowerCase().contains(textEditingValue.text.toLowerCase()));
+                          },
+                          onSelected: (Product p) {
+                            setDialogState(() {
+                              selectedProduct = p;
+                              nameCtrl.text = p.name;
+                              priceCtrl.text = p.unitPrice.toString();
+                              vatCtrl.text = (p.vatRate * 100).toStringAsFixed(0);
+                              selectedUnit = p.unit;
+                            });
+                            updateTotals(setDialogState);
+                          },
+                          fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                            // On synchronise nameCtrl avec le contrôleur interne d'Autocomplete
+                            if (nameCtrl.text.isNotEmpty && controller.text.isEmpty) {
+                               controller.text = nameCtrl.text;
+                            }
+                            controller.addListener(() {
+                              nameCtrl.text = controller.text;
+                            });
+                            
+                            return TextField(
+                              controller: controller,
+                              focusNode: focusNode,
+                              decoration: InputDecoration(
+                                hintText: 'Rechercher ou saisir un nom...',
+                                filled: true,
+                                fillColor: const Color(0xFFF8F9FA),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                                prefixIcon: const Icon(Icons.search, size: 20),
                               ),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            );
+                          },
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        // Unité & Quantité
+                        Row(
+                          children: [
+                            Expanded(
+                              flex: 2,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('UNITÉ', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.grey, letterSpacing: 1)),
+                                  const SizedBox(height: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                                    decoration: BoxDecoration(color: const Color(0xFFF8F9FA), borderRadius: BorderRadius.circular(12)),
+                                    child: DropdownButtonHideUnderline(
+                                      child: DropdownButton<String>(
+                                        value: selectedUnit,
+                                        isExpanded: true,
+                                        items: units.map((u) => DropdownMenuItem(value: u, child: Text(u))).toList(),
+                                        onChanged: (v) => setDialogState(() => selectedUnit = v ?? 'Unité'),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                            child: const Text('Ajouter'),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              flex: 1,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('QTÉ', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.grey, letterSpacing: 1)),
+                                  const SizedBox(height: 8),
+                                  TextField(
+                                    controller: qtyCtrl,
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    textAlign: TextAlign.center,
+                                    decoration: InputDecoration(
+                                      filled: true,
+                                      fillColor: const Color(0xFFF8F9FA),
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                                    ),
+                                    onChanged: (_) => updateTotals(setDialogState),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        // Prix & TVA
+                        Row(
+                          children: [
+                            Expanded(
+                              flex: 2,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('PRIX UNITAIRE (HT)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.grey, letterSpacing: 1)),
+                                  const SizedBox(height: 8),
+                                  TextField(
+                                    controller: priceCtrl,
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    decoration: InputDecoration(
+                                      filled: true,
+                                      fillColor: const Color(0xFFF8F9FA),
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                                      suffixText: 'CFA',
+                                      prefixIcon: const Icon(Icons.payments_outlined, size: 20),
+                                    ),
+                                    onChanged: (_) => updateTotals(setDialogState),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              flex: 1,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('TVA %', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.grey, letterSpacing: 1)),
+                                  const SizedBox(height: 8),
+                                  TextField(
+                                    controller: vatCtrl,
+                                    keyboardType: TextInputType.number,
+                                    textAlign: TextAlign.center,
+                                    decoration: InputDecoration(
+                                      filled: true,
+                                      fillColor: const Color(0xFFF8F9FA),
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                                    ),
+                                    onChanged: (_) => updateTotals(setDialogState),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 40),
+
+                        // Résumé du calcul
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: AppColors.yellow.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: AppColors.yellow.withOpacity(0.2)),
+                          ),
+                          child: Column(
+                            children: [
+                              _buildCalculationRow('Total HT', lineHT),
+                              const SizedBox(height: 8),
+                              _buildCalculationRow('TVA (${vatCtrl.text}%)', lineVAT),
+                              const Divider(height: 24),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('TOTAL TTC', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+                                  Text(
+                                    Formatters.moneyCfa(lineTTC),
+                                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: AppColors.yellow),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
+                        const SizedBox(height: 24),
                       ],
                     ),
                   ),
-                ],
-              ),
+                ),
+
+                // Bouton Valider
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: ElevatedButton(
+                    onPressed: () {
+                      if (nameCtrl.text.trim().isEmpty) return;
+                      
+                      Navigator.pop(sheetContext, {
+                        'name': nameCtrl.text.trim(),
+                        'price': double.tryParse(priceCtrl.text.replaceAll(',', '.')) ?? 0,
+                        'vat': (double.tryParse(vatCtrl.text.replaceAll(',', '.')) ?? 18) / 100,
+                        'unit': selectedUnit,
+                        'quantity': double.tryParse(qtyCtrl.text.replaceAll(',', '.')) ?? 1,
+                      });
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.yellow,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(double.infinity, 56),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      elevation: 0,
+                    ),
+                    child: const Text('AJOUTER AU DEVIS', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                  ),
+                ),
+              ],
             ),
-          ),
-        );
-    
-    // Nettoyer les contrôleurs
-    nameCtrl.dispose();
-    priceCtrl.dispose();
-    vatCtrl.dispose();
-    qtyCtrl.dispose();
+          );
+        }
+      ),
+    );
 
     if (result != null) {
-      final q = double.tryParse(result['quantity'].replaceAll(',', '.')) ?? 1;
-      
-      if (result['mode'] == 'select' && result['productId'] != null) {
-        // Utiliser un produit existant
-        final p = _products.firstWhere((x) => x.id == result['productId']);
-        setState(() {
-          _lines.add(_Line(
-            name: p.name,
-            unitPrice: p.unitPrice,
-            vatRate: p.vatRate,
-            quantity: q,
-          ));
-        });
-      } else if (result['mode'] == 'create') {
-        // Créer un nouveau produit et l'ajouter
-        final name = result['name'];
-        final price = double.tryParse(result['price'].replaceAll(',', '.')) ?? 0;
-        final vatPercent = double.tryParse(result['vat'].replaceAll(',', '.')) ?? 18;
-        final vatRate = vatPercent / 100.0;
-        
-        // Optionnel: sauvegarder le produit pour réutilisation future
+      final name = result['name'] as String;
+      final price = result['price'] as double;
+      final vat = result['vat'] as double;
+      final unit = result['unit'] as String;
+      final qty = result['quantity'] as double;
+
+      // Si c'est un nouveau produit, on le sauvegarde pour la prochaine fois
+      final isExisting = _products.any((p) => p.name.toLowerCase() == name.toLowerCase());
+      if (!isExisting) {
         final productRepo = context.read<ProductRepository>();
-        productRepo.create(
+        // On ne bloque pas l'UI, on fait ça en tâche de fond
+        productRepo.create(name: name, unitPrice: price, vatRate: vat, unit: unit).then((_) => _loadProducts());
+      }
+
+      setState(() {
+        _lines.add(_Line(
           name: name,
           unitPrice: price,
-          vatRate: vatRate,
-        ).then((_) {
-          // Recharger la liste des produits pour la prochaine fois
-          _loadProducts();
-        });
-        
-        setState(() {
-          _lines.add(_Line(
-            name: name,
-            unitPrice: price,
-            vatRate: vatRate,
-            quantity: q,
-          ));
-        });
-      }
+          vatRate: vat,
+          quantity: qty,
+          unit: unit,
+        ));
+      });
     }
+  }
+
+  Widget _buildCalculationRow(String label, double amount) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.w600)),
+        Text(Formatters.moneyCfa(amount), style: const TextStyle(fontWeight: FontWeight.w700)),
+      ],
+    );
   }
 
   void _showTemplatesDialog(BuildContext context) {
@@ -1569,6 +1526,7 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
           unitPrice: item.unitPrice,
           vatRate: item.vatRate,
           quantity: item.quantity.toDouble(),
+          unit: item.unit,
         ));
       }
     });
@@ -1632,10 +1590,17 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
 }
 
 class _Line {
-  _Line({required this.name, required this.unitPrice, required this.vatRate, required this.quantity});
+  _Line({
+    required this.name,
+    required this.unitPrice,
+    required this.vatRate,
+    required this.quantity,
+    this.unit,
+  });
 
   final String name;
   final double unitPrice;
   final double vatRate;
   final double quantity;
+  final String? unit;
 }

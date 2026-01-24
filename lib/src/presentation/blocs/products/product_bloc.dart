@@ -24,7 +24,12 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
 
     on<ProductCreateRequested>((event, emit) async {
       try {
-        await _productRepository.create(name: event.name, unitPrice: event.unitPrice, vatRate: event.vatRate);
+        await _productRepository.create(
+          name: event.name,
+          unitPrice: event.unitPrice,
+          vatRate: event.vatRate,
+          unit: event.unit,
+        );
         add(const ProductListRequested());
       } catch (e) {
         emit(ProductState.failure(e.toString()));

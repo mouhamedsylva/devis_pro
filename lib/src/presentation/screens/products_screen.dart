@@ -128,7 +128,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   tileColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.w800)),
-                  subtitle: Text('PU: ${p.unitPrice.toStringAsFixed(2)} € | TVA: ${(p.vatRate * 100).toStringAsFixed(0)}%'),
+                  subtitle: Text('PU: ${p.unitPrice.toStringAsFixed(2)} € / ${p.unit} | TVA: ${(p.vatRate * 100).toStringAsFixed(0)}%'),
                   onTap: () => _openProductDialog(existing: p),
                 ),
               );
@@ -166,81 +166,160 @@ class _ProductsScreenState extends State<ProductsScreen> {
     final nameCtrl = TextEditingController(text: existing?.name ?? '');
     final priceCtrl = TextEditingController(text: existing?.unitPrice.toString() ?? '');
     final vatCtrl = TextEditingController(text: existing == null ? '18' : (existing.vatRate * 100).toStringAsFixed(0));
+    String selectedUnit = existing?.unit ?? 'Unité';
+    final List<String> units = ['Unité', 'm', 'm²', 'm³', 'kg', 'Litre', 'Heure', 'Jour', 'Forfait', 'Sac', 'Voyage'];
 
     final saved = await showDialog<bool>(
       context: context,
       barrierDismissible: true,
       useSafeArea: true,
       builder: (dialogContext) {
-        final screenHeight = MediaQuery.of(dialogContext).size.height;
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          elevation: 10,
-          child: Container(
-            constraints: BoxConstraints(
-              maxWidth: 500,
-              maxHeight: screenHeight * 0.9,
-            ),
-            child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header avec gradient
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [
-                        Color(0xFFFDB913),
-                        Color(0xFFFFD700),
-                      ],
-                    ),
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(20),
-                      topRight: Radius.circular(20),
-                    ),
-                  ),
-                  child: Row(
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final screenHeight = MediaQuery.of(context).size.height;
+            return Dialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              elevation: 10,
+              child: Container(
+                constraints: BoxConstraints(maxWidth: 500, maxHeight: screenHeight * 0.9),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Header
                       Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.3),
-                          borderRadius: BorderRadius.circular(12),
+                        padding: const EdgeInsets.all(24),
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(colors: [Color(0xFFFDB913), Color(0xFFFFD700)]),
+                          borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
                         ),
-                        child: const Icon(
-                          Icons.inventory_2_rounded,
-                          color: Colors.white,
-                          size: 28,
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(color: Colors.white.withOpacity(0.3), borderRadius: BorderRadius.circular(12)),
+                              child: const Icon(Icons.inventory_2_rounded, color: Colors.white, size: 28),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(existing == null ? 'Nouveau produit' : 'Modifier produit',
+                                      style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+                                  const SizedBox(height: 4),
+                                  Text(existing == null ? 'Ajoutez un produit ou service' : 'Modifiez les informations',
+                                      style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 13, fontWeight: FontWeight.w500)),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
+                      // Form
+                      Padding(
+                        padding: const EdgeInsets.all(24),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              existing == null ? 'Nouveau produit' : 'Modifier produit',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 22,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 0.5,
+                            _buildFieldLabel('Nom du produit ou service', Icons.label_rounded),
+                            const SizedBox(height: 8),
+                            TextField(
+                              controller: nameCtrl,
+                              decoration: InputDecoration(
+                                hintText: 'Ex: Consultation, Installation...',
+                                prefixIcon: const Icon(Icons.inventory_2_outlined, size: 20),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+                                filled: true,
+                                fillColor: Colors.grey[50],
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              existing == null 
-                                  ? 'Ajoutez un produit ou service' 
-                                  : 'Modifiez les informations',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.9),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
+                            const SizedBox(height: 20),
+                            _buildFieldLabel('Prix unitaire (FCFA)', Icons.payments_rounded),
+                            const SizedBox(height: 8),
+                            TextField(
+                              controller: priceCtrl,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              decoration: InputDecoration(
+                                hintText: '0.00',
+                                prefixIcon: const Icon(Icons.attach_money, size: 20),
+                                suffixText: 'FCFA',
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+                                filled: true,
+                                fillColor: Colors.grey[50],
                               ),
+                            ),
+                            const SizedBox(height: 20),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      _buildFieldLabel('TVA (%)', Icons.percent_rounded),
+                                      const SizedBox(height: 8),
+                                      TextField(
+                                        controller: vatCtrl,
+                                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                        decoration: InputDecoration(
+                                          hintText: '18',
+                                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+                                          filled: true,
+                                          fillColor: Colors.grey[50],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      _buildFieldLabel('Unité', Icons.straighten_rounded),
+                                      const SizedBox(height: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                                        decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey[300]!)),
+                                        child: DropdownButtonHideUnderline(
+                                          child: DropdownButton<String>(
+                                            value: selectedUnit,
+                                            isExpanded: true,
+                                            items: units.map((u) => DropdownMenuItem(value: u, child: Text(u))).toList(),
+                                            onChanged: (v) => setDialogState(() => selectedUnit = v ?? 'Unité'),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Actions
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(color: Colors.grey[50], borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(20), bottomRight: Radius.circular(20))),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Annuler')),
+                            const SizedBox(width: 12),
+                            ElevatedButton(
+                              onPressed: () {
+                                if (nameCtrl.text.trim().isEmpty) return;
+                                Navigator.pop(dialogContext, {
+                                  'name': nameCtrl.text.trim(),
+                                  'price': double.tryParse(priceCtrl.text.trim().replaceAll(',', '.')) ?? 0,
+                                  'vat': (double.tryParse(vatCtrl.text.trim().replaceAll(',', '.')) ?? 18) / 100,
+                                  'unit': selectedUnit,
+                                });
+                              },
+                              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF9B000), foregroundColor: Colors.white),
+                              child: const Text('Enregistrer'),
                             ),
                           ],
                         ),
@@ -248,243 +327,27 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     ],
                   ),
                 ),
-                
-                // Contenu du formulaire
-                Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Nom du produit
-                      _buildFieldLabel('Nom du produit ou service', Icons.label_rounded),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: nameCtrl,
-                        decoration: InputDecoration(
-                          hintText: 'Ex: Consultation, Installation...',
-                          prefixIcon: const Icon(Icons.inventory_2_outlined, size: 20),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: Colors.grey[300]!),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: Colors.grey[300]!),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFFF9B000), width: 2),
-                          ),
-                          filled: true,
-                          fillColor: Colors.grey[50],
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                        ),
-                      ),
-                      
-                      const SizedBox(height: 20),
-                      
-                      // Prix unitaire
-                      _buildFieldLabel('Prix unitaire (FCFA)', Icons.payments_rounded),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: priceCtrl,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        decoration: InputDecoration(
-                          hintText: '0.00',
-                          prefixIcon: const Icon(Icons.attach_money, size: 20),
-                          suffixText: 'FCFA',
-                          suffixStyle: TextStyle(
-                            color: Colors.grey[600],
-                            fontWeight: FontWeight.w600,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: Colors.grey[300]!),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: Colors.grey[300]!),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFFF9B000), width: 2),
-                          ),
-                          filled: true,
-                          fillColor: Colors.grey[50],
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                        ),
-                      ),
-                      
-                      const SizedBox(height: 20),
-                      
-                      // TVA
-                      _buildFieldLabel('Taux de TVA (%)', Icons.percent_rounded),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: vatCtrl,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        decoration: InputDecoration(
-                          hintText: '18',
-                          prefixIcon: const Icon(Icons.calculate_outlined, size: 20),
-                          suffixText: '%',
-                          suffixStyle: TextStyle(
-                            color: Colors.grey[600],
-                            fontWeight: FontWeight.w600,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: Colors.grey[300]!),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: Colors.grey[300]!),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFFF9B000), width: 2),
-                          ),
-                          filled: true,
-                          fillColor: Colors.grey[50],
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                        ),
-                      ),
-                      
-                      const SizedBox(height: 8),
-                      
-                      // Info helper
-                      Row(
-                        children: [
-                          Icon(Icons.info_outline, size: 14, color: Colors.grey[600]),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              'Le taux de TVA standard au Sénégal est de 18%',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                
-                // Actions
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[50],
-                    borderRadius: const BorderRadius.only(
-                      bottomLeft: Radius.circular(20),
-                      bottomRight: Radius.circular(20),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      // Bouton Annuler
-                      TextButton(
-                        onPressed: () => Navigator.pop(dialogContext, false),
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: Text(
-                          'Annuler',
-                          style: TextStyle(
-                            color: Colors.grey[700],
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      
-                      const SizedBox(width: 12),
-                      
-                      // Bouton Enregistrer
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          // Valider les champs avant de fermer
-                          final name = nameCtrl.text.trim();
-                          if (name.isEmpty) {
-                            ScaffoldMessenger.of(dialogContext).showSnackBar(
-                              const SnackBar(
-                                content: Text('Le nom du produit est requis'),
-                                duration: Duration(seconds: 2),
-                              ),
-                            );
-                            return;
-                          }
-                          Navigator.pop(dialogContext, true);
-                        },
-                        icon: const Icon(Icons.check_circle_rounded, size: 20),
-                        label: const Text(
-                          'Enregistrer',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.3,
-                          ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFF9B000),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
 
-    if (!mounted) {
-      nameCtrl.dispose();
-      priceCtrl.dispose();
-      vatCtrl.dispose();
-      return;
-    }
+    if (!mounted) return;
 
-    if (saved == true) {
-      final name = nameCtrl.text.trim();
-      final unitPrice = double.tryParse(priceCtrl.text.trim().replaceAll(',', '.')) ?? 0;
-      final vatPercent = double.tryParse(vatCtrl.text.trim().replaceAll(',', '.')) ?? 0;
-      final vatRate = vatPercent / 100.0;
-      
-      // Nettoyer les contrôleurs avant de continuer
-      nameCtrl.dispose();
-      priceCtrl.dispose();
-      vatCtrl.dispose();
-      
-      if (name.isEmpty) return;
+    if (saved != null && saved != false) {
+      final res = saved as Map<String, dynamic>;
       if (existing == null) {
-        bloc.add(ProductCreateRequested(name: name, unitPrice: unitPrice, vatRate: vatRate));
+        bloc.add(ProductCreateRequested(name: res['name'], unitPrice: res['price'], vatRate: res['vat'], unit: res['unit']));
       } else {
-        bloc.add(
-          ProductUpdateRequested(
-            Product(id: existing.id, name: name, unitPrice: unitPrice, vatRate: vatRate),
-          ),
-        );
+        bloc.add(ProductUpdateRequested(Product(id: existing.id, name: res['name'], unitPrice: res['price'], vatRate: res['vat'], unit: res['unit'])));
       }
-    } else {
-      // Nettoyer les contrôleurs si l'utilisateur a annulé
-      nameCtrl.dispose();
-      priceCtrl.dispose();
-      vatCtrl.dispose();
     }
+    
+    nameCtrl.dispose();
+    priceCtrl.dispose();
+    vatCtrl.dispose();
   }
 
   void _showFilterSortOptions(BuildContext context) {

@@ -52,6 +52,7 @@ class TemplateItem extends Equatable {
     required this.unitPrice,
     required this.vatRate,
     required this.displayOrder,
+    this.unit,
   });
 
   final int id;
@@ -61,7 +62,8 @@ class TemplateItem extends Equatable {
   final int quantity;
   final double unitPrice;
   final double vatRate;
-  final int displayOrder; // Ordre d'affichage
+  final int displayOrder;
+  final String? unit;
 
   double get total => quantity * unitPrice;
 
@@ -75,5 +77,6 @@ class TemplateItem extends Equatable {
         unitPrice,
         vatRate,
         displayOrder,
+        unit,
       ];
 }

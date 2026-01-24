@@ -362,6 +362,12 @@ class _TemplatesScreenState extends State<TemplatesScreen>
                   ),
                   if (template.isCustom) ...[
                     IconButton(
+                      icon: const Icon(Icons.edit_outlined),
+                      color: AppColors.yellow,
+                      tooltip: 'Modifier',
+                      onPressed: () => _openEditor(template),
+                    ),
+                    IconButton(
                       icon: const Icon(Icons.delete_outline),
                       color: Colors.red,
                       tooltip: 'Supprimer',
@@ -583,12 +589,24 @@ class _TemplatesScreenState extends State<TemplatesScreen>
               ElevatedButton.icon(
                 onPressed: () {
                   Navigator.pop(context);
-                  // TODO: Créer un devis à partir de ce template
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Création de devis à partir du template - À implémenter'),
-                    ),
-                  );
+                  _openEditor(template);
+                },
+                icon: Icon(template.isCustom ? Icons.edit : Icons.auto_fix_high),
+                label: Text(template.isCustom ? 'Modifier' : 'Personnaliser'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  // Navigation vers l'éditeur de devis avec les données du template
+                  _useTemplate(template);
                 },
                 icon: const Icon(Icons.add),
                 label: const Text('Utiliser'),
@@ -792,6 +810,51 @@ class _TemplatesScreenState extends State<TemplatesScreen>
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _openEditor(QuoteTemplate template) async {
+    // Charger les détails pour avoir les items
+    context.read<TemplateBloc>().add(TemplateLoadDetails(template.id));
+
+    // Attendre le chargement
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      // On attend l'état chargé
+      final state = await context.read<TemplateBloc>().stream.firstWhere(
+            (s) => s is TemplateDetailsLoaded || s is TemplateError,
+          );
+
+      if (!mounted) return;
+      Navigator.pop(context); // Fermer loader
+
+      if (state is TemplateDetailsLoaded) {
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => TemplateEditorScreen(
+              initialTemplate: template.isCustom ? state.template : null,
+              initialItems: state.items,
+            ),
+          ),
+        );
+        if (result == true) {
+          _loadTemplates();
+        }
+      }
+    } catch (e) {
+      if (mounted) Navigator.pop(context);
+    }
+  }
+
+  void _useTemplate(QuoteTemplate template) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Modèle prêt. Allez dans "Nouveau Devis" pour l\'utiliser')),
     );
   }
 }

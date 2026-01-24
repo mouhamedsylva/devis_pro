@@ -14,7 +14,7 @@ class DatabaseMobile implements DatabaseInterface {
   Database? _database;
 
   static const _dbName = 'devispro.db';
-  static const _dbVersion = 6; // ✨ Version 6 : clientId nullable + clientName/clientPhone dans quotes
+  static const _dbVersion = 7; // ✨ Version 7 : ajout du champ 'unit' (unité)
 
   factory DatabaseMobile() {
     _instance ??= DatabaseMobile._();
@@ -101,7 +101,8 @@ CREATE TABLE products (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
   unitPrice REAL NOT NULL,
-  vatRate REAL NOT NULL
+  vatRate REAL NOT NULL,
+  unit TEXT NOT NULL DEFAULT 'Unité'
 );
 ''');
 
@@ -129,6 +130,7 @@ CREATE TABLE quote_items (
   unitPrice REAL NOT NULL,
   quantity REAL NOT NULL,
   vatRate REAL NOT NULL,
+  unit TEXT,
   total REAL NOT NULL,
   FOREIGN KEY (quoteId) REFERENCES quotes(id) ON DELETE CASCADE
 );
@@ -287,6 +289,13 @@ SELECT id, quoteNumber, clientId, date, status, totalHT, totalVAT, totalTTC FROM
       await db.execute('ALTER TABLE quotes_new RENAME TO quotes;');
       
       print('✅ Migration v5 → v6 réussie : clientId nullable + clientName/clientPhone dans quotes');
+    }
+    if (oldVersion < 7) {
+      // Migration de v6 à v7 : ajout de la colonne 'unit'
+      await db.execute("ALTER TABLE products ADD COLUMN unit TEXT NOT NULL DEFAULT 'Unité'");
+      await db.execute("ALTER TABLE quote_items ADD COLUMN unit TEXT");
+      await db.execute("ALTER TABLE template_items ADD COLUMN unit TEXT");
+      print('✅ Migration v6 → v7 réussie : ajout du champ unit');
     }
   }
 

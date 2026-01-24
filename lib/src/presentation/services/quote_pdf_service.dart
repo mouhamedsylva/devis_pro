@@ -43,417 +43,292 @@ class QuotePdfService {
     final clientPhone = client?.phone ?? quote.clientPhone ?? '';
     final clientAddress = client?.address ?? '';
 
+    // Charger les images (Logo & Signature)
+    pw.MemoryImage? logoImage;
+    if (company.logoPath != null && File(company.logoPath!).existsSync()) {
+      logoImage = pw.MemoryImage(File(company.logoPath!).readAsBytesSync());
+    }
+
+    pw.MemoryImage? signatureImage;
+    if (company.signaturePath != null && File(company.signaturePath!).existsSync()) {
+      signatureImage = pw.MemoryImage(File(company.signaturePath!).readAsBytesSync());
+    }
+
     doc.addPage(
-      pw.Page(
+      pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(0),
+        margin: const pw.EdgeInsets.all(35),
         build: (context) {
-          return pw.Container(
-            decoration: pw.BoxDecoration(
-              color: _blanc,
-              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(16)),
-            ),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                // Header avec bande jaune
-                _buildHeader(context, company, quote),
-                
-                // Section informations client et devis
-                _buildInfoSection(clientName, clientPhone, clientAddress, quote),
-                
-                // Section produits
-                _buildProductsSection(items),
-                
-                // Section totaux
-                _buildTotalsSection(quote, company),
-                
-                // Section conditions
-                _buildConditionsSection(),
-                
-                // Footer
-                _buildFooter(company, quote),
-              ],
-            ),
-          );
+          return [
+            // Header
+            _buildHeader(context, company, quote, logoImage),
+            
+            pw.SizedBox(height: 30),
+            
+            // Section informations client et devis
+            _buildInfoSection(clientName, clientPhone, clientAddress, quote),
+            
+            pw.SizedBox(height: 30),
+            
+            // Section produits
+            _buildProductsSection(items),
+            
+            pw.SizedBox(height: 20),
+            
+            // Section totaux et Signature
+            _buildTotalsAndSignature(quote, company, signatureImage),
+            
+            pw.SizedBox(height: 30),
+            
+            // Section conditions
+            _buildConditionsSection(),
+          ];
         },
+        footer: (context) => _buildFooter(company, quote),
       ),
     );
 
     return doc.save();
   }
 
-  pw.Widget _buildHeader(pw.Context context, Company company, Quote quote) {
-    return pw.Container(
-      decoration: pw.BoxDecoration(
-        gradient: pw.LinearGradient(
-          begin: pw.Alignment.topLeft,
-          end: pw.Alignment.bottomRight,
-          colors: [_jaunePrimaire, _jauneFonce],
-        ),
-      ),
-      padding: const pw.EdgeInsets.all(40),
-      child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          // Logo et infos entreprise
-          pw.Row(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
+  pw.Widget _buildHeader(pw.Context context, Company company, Quote quote, pw.MemoryImage? logoImage) {
+    return pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        // Logo et infos entreprise
+        pw.Expanded(
+          flex: 2,
+          child: pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.center,
             children: [
-              // Logo placeholder
-              pw.Container(
-                width: 70,
-                height: 70,
-                decoration: pw.BoxDecoration(
-                  color: _blanc,
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12)),
-                ),
-                child: pw.Center(
-                  child: pw.Text(
-                    company.name.isNotEmpty ? company.name[0].toUpperCase() : 'B',
-                    style: pw.TextStyle(
-                      fontSize: 24,
-                      fontWeight: pw.FontWeight.bold,
-                      color: _noir,
+              if (logoImage != null)
+                pw.Container(
+                  width: 80,
+                  height: 80,
+                  child: pw.Image(logoImage, fit: pw.BoxFit.contain),
+                )
+              else
+                pw.Container(
+                  width: 80,
+                  height: 80,
+                  decoration: pw.BoxDecoration(
+                    color: _jaunePrimaire,
+                    borderRadius: pw.BorderRadius.circular(12),
+                  ),
+                  child: pw.Center(
+                    child: pw.Text(
+                      company.name.isNotEmpty ? company.name[0].toUpperCase() : 'B',
+                      style: pw.TextStyle(
+                        fontSize: 32,
+                        fontWeight: pw.FontWeight.bold,
+                        color: _noir,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              pw.SizedBox(width: 15),
-              // Infos entreprise
+              pw.SizedBox(width: 20),
               pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
                   pw.Text(
-                    company.name,
+                    company.name.toUpperCase(),
                     style: pw.TextStyle(
-                      fontSize: 28,
+                      fontSize: 18,
                       fontWeight: pw.FontWeight.bold,
                       color: _noir,
+                      letterSpacing: 1.5,
                     ),
                   ),
-                  pw.SizedBox(height: 5),
+                  pw.SizedBox(height: 4),
                   pw.Text(
                     company.phone,
-                    style: pw.TextStyle(
-                      fontSize: 14,
-                      color: _noirLeger,
-                    ),
+                    style: pw.TextStyle(fontSize: 11, color: _grisTexte),
                   ),
-                  if (company.address.isNotEmpty) ...[
-                    pw.SizedBox(height: 2),
+                  if (company.address.isNotEmpty)
                     pw.Text(
                       company.address,
-                      style: pw.TextStyle(
-                        fontSize: 14,
-                        color: _noirLeger,
-                      ),
+                      style: pw.TextStyle(fontSize: 11, color: _grisTexte),
                     ),
-                  ],
                 ],
               ),
             ],
           ),
-          // Titre DEVIS
-          pw.Column(
+        ),
+        // Bloc Titre DEVIS
+        pw.Expanded(
+          flex: 1,
+          child: pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.end,
             children: [
               pw.Text(
                 'DEVIS',
                 style: pw.TextStyle(
-                  fontSize: 36,
+                  fontSize: 40,
                   fontWeight: pw.FontWeight.bold,
                   color: _noir,
-                  letterSpacing: -1,
+                  letterSpacing: 2,
                 ),
               ),
-              pw.SizedBox(height: 10),
               pw.Container(
-                padding: const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: pw.BoxDecoration(
-                  color: _noir,
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
-                ),
-                child: pw.Text(
-                  quote.quoteNumber,
-                  style: pw.TextStyle(
-                    fontSize: 14,
-                    fontWeight: pw.FontWeight.bold,
-                    color: _jaunePrimaire,
-                  ),
+                width: 120,
+                height: 3,
+                color: _jaunePrimaire,
+              ),
+              pw.SizedBox(height: 10),
+              pw.Text(
+                'N° ${quote.quoteNumber}',
+                style: pw.TextStyle(
+                  fontSize: 12,
+                  fontWeight: pw.FontWeight.bold,
+                  color: _noirLeger,
                 ),
               ),
             ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   pw.Widget _buildInfoSection(String clientName, String clientPhone, String clientAddress, Quote quote) {
     final validUntil = quote.date.add(const Duration(days: 30));
     
-    return pw.Container(
-      color: _grisClair,
-      padding: const pw.EdgeInsets.all(40),
-      child: pw.Row(
-        children: [
-          // Bloc Client
-          pw.Expanded(
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Text(
-                  'CLIENT',
-                  style: pw.TextStyle(
-                    fontSize: 12,
-                    fontWeight: pw.FontWeight.bold,
-                    color: _grisTexte,
-                    letterSpacing: 1.5,
-                  ),
+    return pw.Row(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        // Destinataire
+        pw.Expanded(
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text(
+                'DESTINATAIRE',
+                style: pw.TextStyle(
+                  fontSize: 10,
+                  fontWeight: pw.FontWeight.bold,
+                  color: _jauneFonce,
+                  letterSpacing: 1.2,
                 ),
-                pw.SizedBox(height: 12),
-                pw.Container(
-                  padding: const pw.EdgeInsets.all(20),
-                  decoration: pw.BoxDecoration(
-                    color: _blanc,
-                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(10)),
-                    border: pw.Border(
-                      left: pw.BorderSide(color: _jaunePrimaire, width: 4),
-                    ),
-                  ),
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Text(
-                        clientName,
-                        style: pw.TextStyle(
-                          fontSize: 18,
-                          fontWeight: pw.FontWeight.bold,
-                          color: _noir,
-                        ),
-                      ),
-                      if (clientPhone.isNotEmpty) ...[
-                        pw.SizedBox(height: 8),
-                        pw.Text(
-                          clientPhone,
-                          style: pw.TextStyle(
-                            fontSize: 15,
-                            color: _noir,
-                          ),
-                        ),
-                      ],
-                      if (clientAddress.isNotEmpty) ...[
-                        pw.SizedBox(height: 4),
-                        pw.Text(
-                          clientAddress,
-                          style: pw.TextStyle(
-                            fontSize: 15,
-                            color: _noir,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
+              ),
+              pw.SizedBox(height: 8),
+              pw.Text(
+                clientName.toUpperCase(),
+                style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: _noir),
+              ),
+              if (clientPhone.isNotEmpty)
+                pw.Text(clientPhone, style: pw.TextStyle(fontSize: 12, color: _noirLeger)),
+              if (clientAddress.isNotEmpty)
+                pw.Text(clientAddress, style: pw.TextStyle(fontSize: 12, color: _noirLeger)),
+            ],
           ),
-          pw.SizedBox(width: 30),
-          // Bloc Informations devis
-          pw.Expanded(
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Text(
-                  'INFORMATIONS DU DEVIS',
-                  style: pw.TextStyle(
-                    fontSize: 12,
-                    fontWeight: pw.FontWeight.bold,
-                    color: _grisTexte,
-                    letterSpacing: 1.5,
-                  ),
-                ),
-                pw.SizedBox(height: 12),
-                pw.Container(
-                  padding: const pw.EdgeInsets.all(20),
-                  decoration: pw.BoxDecoration(
-                    color: _blanc,
-                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(10)),
-                    border: pw.Border(
-                      left: pw.BorderSide(color: _jaunePrimaire, width: 4),
-                    ),
-                  ),
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Row(
-                        children: [
-                          pw.Text(
-                            'Date d\'émission:',
-                            style: pw.TextStyle(
-                              fontSize: 15,
-                              color: _noir,
-                            ),
-                          ),
-                          pw.SizedBox(width: 10),
-                          pw.Container(
-                            padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                            decoration: pw.BoxDecoration(
-                              color: _jaunePrimaire,
-                              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(20)),
-                            ),
-                            child: pw.Text(
-                              Formatters.dateShort(quote.date),
-                              style: pw.TextStyle(
-                                fontSize: 13,
-                                fontWeight: pw.FontWeight.bold,
-                                color: _noir,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      pw.SizedBox(height: 12),
-                      pw.Row(
-                        children: [
-                          pw.Text(
-                            'Valide jusqu\'au:',
-                            style: pw.TextStyle(
-                              fontSize: 15,
-                              color: _noir,
-                            ),
-                          ),
-                          pw.SizedBox(width: 10),
-                          pw.Container(
-                            padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                            decoration: pw.BoxDecoration(
-                              color: _jaunePrimaire,
-                              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(20)),
-                            ),
-                            child: pw.Text(
-                              Formatters.dateShort(validUntil),
-                              style: pw.TextStyle(
-                                fontSize: 13,
-                                fontWeight: pw.FontWeight.bold,
-                                color: _noir,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+        ),
+        pw.SizedBox(width: 40),
+        // Détails temporels
+        pw.Expanded(
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.end,
+            children: [
+              _buildInfoRow('ÉMISSION', Formatters.dateShort(quote.date)),
+              pw.SizedBox(height: 6),
+              _buildInfoRow('VALIDITÉ', Formatters.dateShort(validUntil)),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
+    );
+  }
+
+  pw.Widget _buildInfoRow(String label, String value) {
+    return pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.end,
+      children: [
+        pw.Text(
+          '$label :',
+          style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: _grisTexte),
+        ),
+        pw.SizedBox(width: 8),
+        pw.Text(
+          value,
+          style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: _noir),
+        ),
+      ],
     );
   }
 
   pw.Widget _buildProductsSection(List<QuoteItem> items) {
-    return pw.Container(
-      padding: const pw.EdgeInsets.all(40),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Text(
-            'Détails du devis',
-            style: pw.TextStyle(
-              fontSize: 20,
-              fontWeight: pw.FontWeight.bold,
-              color: _noir,
-            ),
-          ),
-          pw.SizedBox(height: 15),
-          pw.Container(
-            decoration: pw.BoxDecoration(
-              borderRadius: const pw.BorderRadius.only(
-                topLeft: pw.Radius.circular(8),
-                topRight: pw.Radius.circular(8),
-              ),
-            ),
-            child: pw.Table(
-              border: pw.TableBorder(
-                top: pw.BorderSide(color: _noir, width: 0),
-                bottom: pw.BorderSide(color: _grisMoyen, width: 1),
-                left: pw.BorderSide.none,
-                right: pw.BorderSide.none,
-                horizontalInside: pw.BorderSide(color: _grisMoyen, width: 1),
-              ),
-              columnWidths: {
-                0: const pw.FlexColumnWidth(3),
-                1: const pw.FlexColumnWidth(1),
-                2: const pw.FlexColumnWidth(1),
-                3: const pw.FlexColumnWidth(1),
-                4: const pw.FlexColumnWidth(1),
-              },
-              children: [
-                // En-tête
-                pw.TableRow(
-                  decoration: const pw.BoxDecoration(
-                    color: _noir,
-                    borderRadius: pw.BorderRadius.only(
-                      topLeft: pw.Radius.circular(8),
-                      topRight: pw.Radius.circular(8),
-                    ),
-                  ),
+    return pw.Table(
+      border: pw.TableBorder(
+        horizontalInside: pw.BorderSide(color: _grisClair, width: 1),
+        bottom: pw.BorderSide(color: _noir, width: 1.5),
+      ),
+      columnWidths: {
+        0: const pw.FlexColumnWidth(3), // Description
+        1: const pw.FlexColumnWidth(1), // Qté / Unité
+        2: const pw.FlexColumnWidth(1.2), // P.U
+        3: const pw.FlexColumnWidth(1.2), // Total
+      },
+      children: [
+        // En-tête de table
+        pw.TableRow(
+          decoration: const pw.BoxDecoration(color: _noir),
+          children: [
+            _buildTableHeaderCell('DESCRIPTION DES PRESTATIONS'),
+            _buildTableHeaderCell('QTÉ', align: pw.TextAlign.center),
+            _buildTableHeaderCell('P.U HT', align: pw.TextAlign.right),
+            _buildTableHeaderCell('TOTAL HT', align: pw.TextAlign.right),
+          ],
+        ),
+        // Lignes d'articles
+        ...items.map((item) {
+          final isEven = items.indexOf(item) % 2 == 0;
+          return pw.TableRow(
+            decoration: pw.BoxDecoration(color: isEven ? _blanc : _grisClair),
+            children: [
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(12),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    _buildTableCell('Description', isHeader: true),
-                    _buildTableCell('Quantité', isHeader: true, align: pw.TextAlign.center),
-                    _buildTableCell('Prix Unitaire', isHeader: true, align: pw.TextAlign.right),
-                    _buildTableCell('TVA', isHeader: true, align: pw.TextAlign.right),
-                    _buildTableCell('Total HT', isHeader: true, align: pw.TextAlign.right),
+                    pw.Text(
+                      item.productName,
+                      style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: _noir),
+                    ),
                   ],
                 ),
-                // Lignes de produits
-                ...items.map((item) {
-                  final vatPercent = (item.vatRate * 100).toStringAsFixed(0);
-                  return pw.TableRow(
-                    children: [
-                      pw.Container(
-                        padding: const pw.EdgeInsets.all(18),
-                        child: pw.Column(
-                          crossAxisAlignment: pw.CrossAxisAlignment.start,
-                          children: [
-                            pw.Text(
-                              item.productName,
-                              style: pw.TextStyle(
-                                fontSize: 15,
-                                fontWeight: pw.FontWeight.bold,
-                                color: _noir,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      _buildTableCell(
-                        item.quantity.toStringAsFixed(0),
-                        align: pw.TextAlign.center,
-                      ),
-                      _buildTableCell(
-                        Formatters.moneyCfa(item.unitPrice),
-                        align: pw.TextAlign.right,
-                      ),
-                      _buildTableCell(
-                        '$vatPercent%',
-                        align: pw.TextAlign.right,
-                      ),
-                      _buildTableCell(
-                        Formatters.moneyCfa(item.total),
-                        align: pw.TextAlign.right,
-                        isBold: true,
-                      ),
-                    ],
-                  );
-                }),
-              ],
-            ),
-          ),
-        ],
+              ),
+              _buildTableBodyCell(item.quantity.toStringAsFixed(0), align: pw.TextAlign.center),
+              _buildTableBodyCell(Formatters.moneyCfa(item.unitPrice), align: pw.TextAlign.right),
+              _buildTableBodyCell(Formatters.moneyCfa(item.total), align: pw.TextAlign.right, isBold: true),
+            ],
+          );
+        }),
+      ],
+    );
+  }
+
+  pw.Widget _buildTableHeaderCell(String label, {pw.TextAlign align = pw.TextAlign.left}) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      child: pw.Text(
+        label,
+        textAlign: align,
+        style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: _blanc, letterSpacing: 1),
+      ),
+    );
+  }
+
+  pw.Widget _buildTableBodyCell(String value, {pw.TextAlign align = pw.TextAlign.left, bool isBold = false}) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(12),
+      child: pw.Text(
+        value,
+        textAlign: align,
+        style: pw.TextStyle(
+          fontSize: 10,
+          fontWeight: isBold ? pw.FontWeight.bold : pw.FontWeight.normal,
+          color: _noirLeger,
+        ),
       ),
     );
   }
@@ -473,91 +348,86 @@ class QuotePdfService {
     );
   }
 
-  pw.Widget _buildTotalsSection(Quote quote, Company company) {
-    return pw.Container(
-      padding: const pw.EdgeInsets.fromLTRB(40, 0, 40, 40),
-      child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.end,
-        children: [
-          pw.Container(
-            width: 400,
-            padding: const pw.EdgeInsets.all(25),
-            decoration: pw.BoxDecoration(
-              color: _grisClair,
-              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12)),
-            ),
-            child: pw.Column(
-              children: [
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text(
-                      'Sous-total HT',
-                      style: pw.TextStyle(
-                        fontSize: 15,
-                        color: _noirLeger,
-                      ),
-                    ),
-                    pw.Text(
-                      Formatters.moneyCfa(quote.totalHT, currencyLabel: company.currency),
-                      style: pw.TextStyle(
-                        fontSize: 15,
-                        color: _noirLeger,
-                      ),
-                    ),
-                  ],
+  pw.Widget _buildTotalsAndSignature(Quote quote, Company company, pw.MemoryImage? signatureImage) {
+    return pw.Row(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        // Zone Signature (Générée à gauche pour l'équilibre visuel)
+        pw.Expanded(
+          flex: 1,
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text(
+                'SCEAU & SIGNATURE :',
+                style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: _noir),
+              ),
+              pw.SizedBox(height: 10),
+              if (signatureImage != null)
+                pw.Container(
+                  height: 100,
+                  child: pw.Image(signatureImage, fit: pw.BoxFit.contain),
+                )
+              else
+                pw.Container(
+                  height: 100,
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: _grisMoyen, style: pw.BorderStyle.dashed),
+                  ),
                 ),
-                pw.SizedBox(height: 12),
-                pw.Divider(color: _grisMoyen, height: 1),
-                pw.SizedBox(height: 12),
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text(
-                      'TVA',
-                      style: pw.TextStyle(
-                        fontSize: 15,
-                        color: _noirLeger,
-                      ),
-                    ),
-                    pw.Text(
-                      Formatters.moneyCfa(quote.totalVAT, currencyLabel: company.currency),
-                      style: pw.TextStyle(
-                        fontSize: 15,
-                        color: _noirLeger,
-                      ),
-                    ),
-                  ],
-                ),
-                pw.SizedBox(height: 15),
-                pw.Divider(color: _noir, height: 2),
-                pw.SizedBox(height: 15),
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text(
-                      'TOTAL TTC',
-                      style: pw.TextStyle(
-                        fontSize: 24,
-                        fontWeight: pw.FontWeight.bold,
-                        color: _noir,
-                      ),
-                    ),
-                    pw.Text(
-                      Formatters.moneyCfa(quote.totalTTC, currencyLabel: company.currency),
-                      style: pw.TextStyle(
-                        fontSize: 24,
-                        fontWeight: pw.FontWeight.bold,
-                        color: _jauneFonce,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+            ],
           ),
-        ],
-      ),
+        ),
+        pw.SizedBox(width: 40),
+        // Zone Totaux à droite
+        pw.Expanded(
+          flex: 1,
+          child: pw.Column(
+            children: [
+              _buildTotalRow('TOTAL HORS TAXE', Formatters.moneyCfa(quote.totalHT, currencyLabel: company.currency)),
+              pw.Padding(
+                padding: const pw.EdgeInsets.symmetric(vertical: 4),
+                child: pw.Divider(color: _grisMoyen, thickness: 0.5),
+              ),
+              _buildTotalRow('TOTAL TVA (${(company.vatRate * 100).toStringAsFixed(0)}%)', Formatters.moneyCfa(quote.totalVAT, currencyLabel: company.currency)),
+              pw.SizedBox(height: 10),
+              pw.Container(
+                padding: const pw.EdgeInsets.all(12),
+                decoration: const pw.BoxDecoration(color: _noir),
+                child: _buildTotalRow(
+                  'NET À PAYER', 
+                  Formatters.moneyCfa(quote.totalTTC, currencyLabel: company.currency),
+                  isTTC: true
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  pw.Widget _buildTotalRow(String label, String value, {bool isTTC = false}) {
+    return pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+      children: [
+        pw.Text(
+          label,
+          style: pw.TextStyle(
+            fontSize: isTTC ? 11 : 9, 
+            fontWeight: pw.FontWeight.bold, 
+            color: isTTC ? _blanc : _grisTexte
+          ),
+        ),
+        pw.Text(
+          value,
+          style: pw.TextStyle(
+            fontSize: isTTC ? 14 : 11, 
+            fontWeight: pw.FontWeight.bold, 
+            color: isTTC ? _jaunePrimaire : _noir
+          ),
+        ),
+      ],
     );
   }
 

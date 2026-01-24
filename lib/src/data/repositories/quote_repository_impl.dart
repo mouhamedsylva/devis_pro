@@ -111,6 +111,7 @@ class QuoteRepositoryImpl implements QuoteRepository {
           'unitPrice': it.unitPrice,
           'quantity': it.quantity,
           'vatRate': it.vatRate,
+          'unit': it.unit,
           'total': lineTotal,
         });
       }

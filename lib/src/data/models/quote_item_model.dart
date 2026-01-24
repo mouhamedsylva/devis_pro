@@ -10,6 +10,7 @@ class QuoteItemModel {
       unitPrice: (map['unitPrice'] as num).toDouble(),
       quantity: (map['quantity'] as num).toDouble(),
       vatRate: (map['vatRate'] as num).toDouble(),
+      unit: map['unit'] as String?,
       total: (map['total'] as num).toDouble(),
     );
   }

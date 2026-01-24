@@ -55,16 +55,25 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthOTPRequested>((event, emit) async {
       emit(const AuthState.loading());
       try {
-        // Vérifier si l'email existe déjà
-        final existingUser = await _userRepository.findByEmail(event.email);
-        if (existingUser != null) {
+        final email = event.email.trim().toLowerCase();
+        
+        // 1. Vérifier si l'email existe déjà
+        final existingUserByEmail = await _userRepository.findByEmail(email);
+        if (existingUserByEmail != null) {
           emit(const AuthState.failure('Cet email est déjà utilisé'));
           return;
         }
+
+        // 2. Vérifier si le numéro existe déjà (Validation précoce !)
+        final existingUserByPhone = await _userRepository.findByPhone(event.phoneNumber);
+        if (existingUserByPhone != null) {
+          emit(const AuthState.failure('Ce numéro est déjà utilisé'));
+          return;
+        }
         
-        // Générer et envoyer l'OTP
-        await _otpRepository.generateAndSendOTP(event.email, event.companyName);
-        emit(AuthState.otpSent(message: 'Code envoyé à ${event.email}'));
+        // 3. Générer et envoyer l'OTP
+        await _otpRepository.generateAndSendOTP(email, event.companyName);
+        emit(AuthState.otpSent(message: 'Code envoyé à $email'));
       } catch (e) {
         emit(AuthState.failure('Erreur lors de l\'envoi du code: ${e.toString()}'));
       }
@@ -74,8 +83,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthRegistrationRequested>((event, emit) async {
       emit(const AuthState.otpVerifying());
       try {
+        final email = event.email.trim().toLowerCase();
+
         // 1. Vérifier l'OTP
-        final isValidOTP = await _otpRepository.verifyOTP(event.email, event.otpCode);
+        final isValidOTP = await _otpRepository.verifyOTP(email, event.otpCode);
         if (!isValidOTP) {
           emit(const AuthState.failure('Code invalide ou expiré'));
           return;
@@ -91,15 +102,21 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         // 3. Créer l'utilisateur
         final user = await _userRepository.createUser(
           phoneNumber: event.phoneNumber,
-          email: event.email,
+          email: email,
           companyName: event.companyName,
           isVerified: true,
         );
         
-        // 4. Sauvegarder la session
+        // 4. Envoyer l'email de bienvenue (Optionnel, ne pas bloquer si erreur)
+        _otpRepository.sendWelcomeEmail(
+          email: email,
+          companyName: event.companyName,
+        );
+
+        // 5. Sauvegarder la session
         await _sessionStore.setPhone(user.phoneNumber);
         
-        // 5. Authentifier
+        // 6. Authentifier
         emit(AuthState.authenticated(user));
       } catch (e) {
         emit(AuthState.failure('Erreur lors de l\'inscription: ${e.toString()}'));
@@ -110,8 +127,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthResendOTP>((event, emit) async {
       emit(const AuthState.loading());
       try {
-        await _otpRepository.generateAndSendOTP(event.email, event.companyName);
-        emit(AuthState.otpSent(message: 'Code renvoyé à ${event.email}'));
+        final email = event.email.trim().toLowerCase();
+        await _otpRepository.generateAndSendOTP(email, event.companyName);
+        emit(AuthState.otpSent(message: 'Code renvoyé à $email'));
       } catch (e) {
         emit(AuthState.failure('Erreur lors du renvoi: ${e.toString()}'));
       }

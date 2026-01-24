@@ -30,13 +30,15 @@ class AuthOTPRequested extends AuthEvent {
   const AuthOTPRequested({
     required this.email,
     required this.companyName,
+    required this.phoneNumber,
   });
 
   final String email;
   final String companyName;
+  final String phoneNumber;
 
   @override
-  List<Object?> get props => [email, companyName];
+  List<Object?> get props => [email, companyName, phoneNumber];
 }
 
 class AuthRegistrationRequested extends AuthEvent {
@@ -60,13 +62,15 @@ class AuthResendOTP extends AuthEvent {
   const AuthResendOTP({
     required this.email,
     required this.companyName,
+    required this.phoneNumber,
   });
 
   final String email;
   final String companyName;
+  final String phoneNumber;
 
   @override
-  List<Object?> get props => [email, companyName];
+  List<Object?> get props => [email, companyName, phoneNumber];
 }
 
 // ✨ Événements pour connexion avec OTP

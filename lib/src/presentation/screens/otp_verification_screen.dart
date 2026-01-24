@@ -2,7 +2,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:pin_code_fields/pin_code_fields.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../blocs/auth/auth_bloc.dart';
@@ -35,6 +34,11 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
   bool _canResend = false;
   bool _disposed = false;
 
+  // ✨ Nouvelles variables pour la saisie personnalisée
+  final Set<int> _showDigits = {};
+  int _lastLength = 0;
+  final FocusNode _hiddenFocus = FocusNode();
+
   @override
   void initState() {
     super.initState();
@@ -50,12 +54,12 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     _timer?.cancel();
     _timer = null;
     
-    // Disposer le controller de manière sécurisée
+    // Disposer le controller et le focus de manière sécurisée
     try {
       _otpController.dispose();
+      _hiddenFocus.dispose();
     } catch (e) {
-      // Ignorer les erreurs de disposal si déjà disposé
-      debugPrint('Controller already disposed: $e');
+      debugPrint('Error during disposal: $e');
     }
     
     super.dispose();
@@ -132,9 +136,13 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
               AuthResendOTP(
                 email: widget.email!,
                 companyName: widget.companyName!,
+                phoneNumber: widget.phoneNumber,
               ),
             );
       }
+      _otpController.clear();
+      _showDigits.clear();
+      _lastLength = 0;
       _startCountdown();
     }
   }
@@ -341,30 +349,96 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
 
                         const SizedBox(height: 32),
 
-                        // Champ OTP avec pin_code_fields
-                        PinCodeTextField(
-                          appContext: context,
-                          length: 6,
-                          controller: _otpController,
-                          keyboardType: TextInputType.number,
-                          animationType: AnimationType.fade,
-                          pinTheme: PinTheme(
-                            shape: PinCodeFieldShape.box,
-                            borderRadius: BorderRadius.circular(0),
-                            fieldHeight: 50,
-                            fieldWidth: 40,
-                            activeFillColor: Colors.white,
-                            inactiveFillColor: const Color(0xFFF5F5F5),
-                            selectedFillColor: Colors.white,
-                            activeColor: AppColors.yellow,
-                            inactiveColor: const Color(0xFFE0E0E0),
-                            selectedColor: AppColors.yellow,
+                        // Zone de saisie OTP Personnalisée (Show then Hide)
+                        Focus(
+                          focusNode: _hiddenFocus,
+                          onFocusChange: (hasFocus) {
+                            setState(() {}); // Rebuild to show focus color
+                          },
+                          child: GestureDetector(
+                            onTap: () {
+                              _hiddenFocus.requestFocus();
+                            },
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                // TextField invisible pour capturer la saisie
+                                Opacity(
+                                  opacity: 0,
+                                  child: SizedBox(
+                                    width: 1,
+                                    height: 1,
+                                    child: TextField(
+                                      controller: _otpController,
+                                      focusNode: _hiddenFocus,
+                                      keyboardType: TextInputType.number,
+                                      maxLength: 6,
+                                      autofocus: true,
+                                      onChanged: (value) {
+                                        setState(() {});
+                                        if (value.length > _lastLength) {
+                                          // Nouveau chiffre ajouté
+                                          final index = value.length - 1;
+                                          _showDigits.add(index);
+                                          Timer(const Duration(milliseconds: 600), () {
+                                            if (mounted) {
+                                              setState(() {
+                                                _showDigits.remove(index);
+                                              });
+                                            }
+                                          });
+                                        }
+                                        _lastLength = value.length;
+                                        if (value.length == 6) {
+                                          _verifyOTP();
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                ),
+                                // Rendu visuel des 6 cases
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: List.generate(6, (index) {
+                                    final char = _otpController.text.length > index
+                                        ? _otpController.text[index]
+                                        : '';
+                                    final isVisible = _showDigits.contains(index);
+                                    final hasFocus = _hiddenFocus.hasFocus;
+                                    final isCurrent = _otpController.text.length == index && hasFocus;
+
+                                    return Container(
+                                      width: isWeb ? 50 : 42,
+                                      height: 55,
+                                      alignment: Alignment.center,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF5F5F5),
+                                        borderRadius: BorderRadius.circular(0),
+                                        border: Border.all(
+                                          color: isCurrent
+                                              ? AppColors.yellow
+                                              : (char.isNotEmpty ? AppColors.yellow.withOpacity(0.5) : const Color(0xFFE0E0E0)),
+                                          width: isCurrent ? 2 : 1,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        char.isEmpty
+                                            ? ''
+                                            : (isVisible ? char : '•'),
+                                        style: TextStyle(
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.w900,
+                                          color: isVisible 
+                                              ? const Color(0xFF2D2D2D) 
+                                              : AppColors.yellow,
+                                        ),
+                                      ),
+                                    );
+                                  }),
+                                ),
+                              ],
+                            ),
                           ),
-                          cursorColor: AppColors.yellow,
-                          animationDuration: const Duration(milliseconds: 300),
-                          enableActiveFill: true,
-                          onCompleted: (_) => _verifyOTP(),
-                          onChanged: (value) {},
                         ),
 
                         const SizedBox(height: 24),
@@ -396,13 +470,60 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
 
                         const SizedBox(height: 32),
 
-                        // Bouton vérifier
+                        // Zone d'état / Bouton
                         BlocBuilder<AuthBloc, AuthState>(
                           builder: (context, state) {
                             final isLoading = state.status == AuthStatus.otpVerifying;
-                            return AnimatedGradientButton(
-                              onPressed: isLoading ? null : _verifyOTP,
-                              text: isLoading ? 'VÉRIFICATION...' : 'VÉRIFIER LE CODE',
+                            final isComplete = _otpController.text.length == 6;
+
+                            if (isLoading || isComplete) {
+                              return Container(
+                                padding: const EdgeInsets.symmetric(vertical: 24),
+                                decoration: BoxDecoration(
+                                  color: AppColors.yellow.withOpacity(0.05),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: AppColors.yellow.withOpacity(0.2),
+                                  ),
+                                ),
+                                child: Column(
+                                  children: [
+                                    if (isLoading)
+                                      const SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: AppColors.yellow,
+                                        ),
+                                      )
+                                    else
+                                      const Icon(Icons.lock_clock, color: AppColors.yellow),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      isLoading 
+                                          ? 'VÉRIFICATION DE SÉCURITÉ...' 
+                                          : 'FINALISATION DE L\'ACCÈS...',
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppColors.yellow,
+                                        letterSpacing: 1.5,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+
+                            // Bouton désactivé tant que non complet
+                            return Opacity(
+                              opacity: 0.5,
+                              child: AnimatedGradientButton(
+                                onPressed: null,
+                                text: 'ENTREZ LE CODE',
+                              ),
                             );
                           },
                         ),
