@@ -15,6 +15,9 @@ import '../blocs/quotes/quote_bloc.dart';
 import '../blocs/template/template_bloc.dart';
 import '../blocs/template/template_event.dart';
 import '../widgets/quote_preview_dialog.dart';
+import '../../core/services/connectivity_service.dart';
+import '../widgets/offline_indicator.dart';
+import '../widgets/connectivity_wrapper.dart';
 import 'quote_editor_screen.dart';
 import 'templates_screen.dart';
 import '../services/quote_pdf_service.dart';
@@ -29,21 +32,43 @@ class QuotesScreen extends StatefulWidget {
 class _QuotesScreenState extends State<QuotesScreen> {
   final _pdf = QuotePdfService();
   final TextEditingController _searchController = TextEditingController();
-  String _currentFilter = 'all'; // all, draft, sent, accepted
+  String _currentFilter = 'all'; // all, draft, sent, accepted, sync
   String _currentSort = 'date_desc'; // date_desc, date_asc, amount_desc, amount_asc
+  
+  // Connectivity
+  bool _isOnline = true;
+  final ConnectivityService _connectivityService = ConnectivityService();
 
   @override
   void initState() {
     super.initState();
     context.read<QuoteBloc>().add(const QuoteListRequested());
     _searchController.addListener(() {
-      setState(() {}); // Pour mettre à jour l'icône clear et la liste
+      setState(() {});
+    });
+    
+    // Monitoring connectivité
+    _connectivityService.startMonitoring();
+    _connectivityService.connectionStatus.listen((isConnected) {
+      if (mounted) {
+        setState(() {
+          _isOnline = isConnected;
+        });
+      }
+    });
+    _connectivityService.checkConnection().then((isConnected) {
+      if (mounted) {
+        setState(() {
+          _isOnline = isConnected;
+        });
+      }
     });
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _connectivityService.dispose();
     super.dispose();
   }
 
@@ -88,6 +113,25 @@ class _QuotesScreenState extends State<QuotesScreen> {
               _showFilterSortOptions(context);
             },
           ),
+          // Sync button (only if online and there are pending quotes - logic simplified here)
+          if (_isOnline)
+            BlocBuilder<QuoteBloc, QuoteState>(
+              builder: (context, state) {
+                final hasPending = state.quotes?.any((q) => q.pendingSync) ?? false;
+                if (!hasPending) return const SizedBox.shrink();
+                
+                return IconButton(
+                  tooltip: 'Synchroniser maintenant',
+                  icon: const Icon(Icons.sync, color: AppColors.yellow),
+                  onPressed: () {
+                    context.read<QuoteBloc>().add(const QuoteSyncPendingRequested());
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Synchronisation lancée...')),
+                    );
+                  },
+                );
+              },
+            ),
         ],
         elevation: 0,
         centerTitle: false,
@@ -140,61 +184,71 @@ class _QuotesScreenState extends State<QuotesScreen> {
           );
         },
       ),
-      body: BlocConsumer<QuoteBloc, QuoteState>(
-        listenWhen: (p, c) => c.status == QuoteStatus.failure && c.message != null,
-        listener: (context, state) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(state.message!),
-              backgroundColor: Colors.red,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      body: Column(
+        children: [
+          Expanded(
+            child: BlocConsumer<QuoteBloc, QuoteState>(
+              listenWhen: (p, c) => c.status == QuoteStatus.failure && c.message != null,
+              listener: (context, state) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(state.message!),
+                    backgroundColor: Colors.red,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                );
+              },
+              builder: (context, state) {
+                if (state.status == QuoteStatus.loading) {
+                  return _buildLoadingSkeleton();
+                }
+                
+                var quotes = state.quotes ?? const [];
+                
+                // Filtrer par recherche (numéro de devis)
+                final searchTerm = _searchController.text.toLowerCase();
+                if (searchTerm.isNotEmpty) {
+                  quotes = quotes.where((q) => 
+                    q.quoteNumber.toLowerCase().contains(searchTerm)
+                  ).toList();
+                }
+                
+                // Filtrer par statut
+                if (_currentFilter != 'all') {
+                  if (_currentFilter == 'sync') {
+                    quotes = quotes.where((q) => q.pendingSync).toList();
+                  } else {
+                    final statusFilter = switch (_currentFilter) {
+                      'draft' => 'Brouillon',
+                      'sent' => 'Envoyé',
+                      'accepted' => 'Accepté',
+                      _ => '',
+                    };
+                    quotes = quotes.where((q) => q.status == statusFilter).toList();
+                  }
+                }
+                
+                // Appliquer le tri
+                quotes = _applySorting(quotes);
+                
+                if (quotes.isEmpty) {
+                  return _buildEmptyState(context, searchTerm);
+                }
+                
+                return ListView.separated(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: quotes.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (context, i) {
+                    final q = quotes[i];
+                    return _buildQuoteCard(context, q);
+                  },
+                );
+              },
             ),
-          );
-        },
-        builder: (context, state) {
-          if (state.status == QuoteStatus.loading) {
-            return _buildLoadingSkeleton();
-          }
-          
-          var quotes = state.quotes ?? const [];
-          
-          // Filtrer par recherche (numéro de devis)
-          final searchTerm = _searchController.text.toLowerCase();
-          if (searchTerm.isNotEmpty) {
-            quotes = quotes.where((q) => 
-              q.quoteNumber.toLowerCase().contains(searchTerm)
-            ).toList();
-          }
-          
-          // Filtrer par statut
-          if (_currentFilter != 'all') {
-            final statusFilter = switch (_currentFilter) {
-              'draft' => 'Brouillon',
-              'sent' => 'Envoyé',
-              'accepted' => 'Accepté',
-              _ => '',
-            };
-            quotes = quotes.where((q) => q.status == statusFilter).toList();
-          }
-          
-          // Appliquer le tri
-          quotes = _applySorting(quotes);
-          
-          if (quotes.isEmpty) {
-            return _buildEmptyState(context, searchTerm);
-          }
-          
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: quotes.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (context, i) {
-              final q = quotes[i];
-              return _buildQuoteCard(context, q);
-            },
-          );
-        },
+          ),
+        ],
       ),
     );
   }
@@ -261,6 +315,23 @@ class _QuotesScreenState extends State<QuotesScreen> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
+                            if (quote.pendingSync) ...[
+                              const SizedBox(height: 2),
+                              Row(
+                                children: [
+                                  Icon(Icons.cloud_off, size: 12, color: Colors.blue),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'En attente de sync',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blue,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                             const SizedBox(height: 2),
                             // Date
                             Row(
@@ -368,7 +439,9 @@ class _QuotesScreenState extends State<QuotesScreen> {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
-        child: Container(
+        child: Opacity(
+          opacity: onTap == null ? 0.5 : 1.0,
+          child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           decoration: BoxDecoration(
             color: color.withOpacity(0.1),
@@ -394,6 +467,7 @@ class _QuotesScreenState extends State<QuotesScreen> {
             ],
           ),
         ),
+      ),
       ),
     );
   }
@@ -588,6 +662,24 @@ class _QuotesScreenState extends State<QuotesScreen> {
                     Navigator.pop(context);
                   },
                 ),
+                RadioListTile<String>(
+                  title: Row(
+                    children: [
+                      const Text('Non synchronisés'),
+                      const SizedBox(width: 8),
+                      Icon(Icons.cloud_off, size: 16, color: Colors.blue),
+                    ],
+                  ),
+                  value: 'sync',
+                  groupValue: _currentFilter,
+                  onChanged: (value) {
+                    setState(() {
+                      _currentFilter = value!;
+                    });
+                    setModalState(() {});
+                    Navigator.pop(context);
+                  },
+                ),
                 
                 // Section Trier
                 ListTile(
@@ -771,6 +863,17 @@ class _QuotesScreenState extends State<QuotesScreen> {
   }
 
   Future<void> _exportPdf(BuildContext context, int quoteId, int? clientId) async {
+    if (!_isOnline) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Connexion internet requise pour le partage PDF (images, etc)'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      // On continue quand même car la génération est locale, mais ça prévient l'utilisateur
+      // Si on veut bloquer : return;
+    }
+
     final companyRepo = context.read<CompanyRepository>();
     final clientRepo = context.read<ClientRepository>();
     final quoteRepo = context.read<QuoteRepository>();
@@ -791,6 +894,16 @@ class _QuotesScreenState extends State<QuotesScreen> {
   }
 
   Future<void> _shareToWhatsApp(BuildContext context, int quoteId, int? clientId) async {
+    if (!_isOnline) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Connexion internet requise pour WhatsApp'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     final companyRepo = context.read<CompanyRepository>();
     final clientRepo = context.read<ClientRepository>();
     final quoteRepo = context.read<QuoteRepository>();

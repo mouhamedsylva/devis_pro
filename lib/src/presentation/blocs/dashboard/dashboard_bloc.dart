@@ -37,7 +37,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     try {
       final totalClients = await _clientRepository.getClientsCount();
       final totalProducts = await _productRepository.getProductsCount();
-      final totalQuotes = await _quoteRepository.getQuotesCount();
+      final totalQuotes = await _quoteRepository.getSyncedQuotesCount();
       final pendingQuotes = await _quoteRepository.getPendingQuotesCount();
       final monthlyRevenue = await _quoteRepository.getMonthlyRevenue();
       final monthlyPotential = await _quoteRepository.getMonthlyPotential();

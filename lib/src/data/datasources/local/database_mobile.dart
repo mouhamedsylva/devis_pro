@@ -14,7 +14,7 @@ class DatabaseMobile implements DatabaseInterface {
   Database? _database;
 
   static const _dbName = 'devispro.db';
-  static const _dbVersion = 7; // ✨ Version 7 : ajout du champ 'unit' (unité)
+  static const _dbVersion = 8; // ✨ Version 8 : ajout champs offline sync
 
   factory DatabaseMobile() {
     _instance ??= DatabaseMobile._();
@@ -296,6 +296,13 @@ SELECT id, quoteNumber, clientId, date, status, totalHT, totalVAT, totalTTC FROM
       await db.execute("ALTER TABLE quote_items ADD COLUMN unit TEXT");
       await db.execute("ALTER TABLE template_items ADD COLUMN unit TEXT");
       print('✅ Migration v6 → v7 réussie : ajout du champ unit');
+    }
+    if (oldVersion < 8) {
+      // Migration de v7 à v8 : ajout des champs de synchronisation pour le mode offline
+      await db.execute('ALTER TABLE quotes ADD COLUMN is_synced INTEGER DEFAULT 1');
+      await db.execute('ALTER TABLE quotes ADD COLUMN synced_at TEXT');
+      await db.execute('ALTER TABLE quotes ADD COLUMN pending_sync INTEGER DEFAULT 0');
+      print('✅ Migration v7 → v8 réussie : ajout des champs offline sync');
     }
   }
 

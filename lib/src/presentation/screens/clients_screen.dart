@@ -6,6 +6,7 @@ import '../../core/constants/app_colors.dart';
 import '../../domain/entities/client.dart';
 import '../blocs/clients/client_bloc.dart';
 import '../widgets/app_text_field.dart';
+import '../widgets/confirmation_dialog.dart';
 
 class ClientsScreen extends StatefulWidget {
   const ClientsScreen({super.key});
@@ -311,13 +312,12 @@ class _ClientsScreenState extends State<ClientsScreen> {
     final bloc = context.read<ClientBloc>();
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Supprimer'),
-        content: Text('Supprimer "${client.name}" ?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Supprimer')),
-        ],
+      builder: (_) => ConfirmationDialog(
+        title: 'Supprimer',
+        content: 'Voulez-vous vraiment supprimer le client "${client.name}" ?',
+        confirmText: 'Supprimer',
+        confirmColor: Colors.red,
+        onConfirm: () => Navigator.of(context).pop(true),
       ),
     );
     if (ok == true) {

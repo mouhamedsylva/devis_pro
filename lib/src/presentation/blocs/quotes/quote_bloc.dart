@@ -32,6 +32,8 @@ class QuoteBloc extends Bloc<QuoteEvent, QuoteState> {
           date: event.date,
           items: event.items,
           status: event.status,
+          isSynced: event.isSynced,
+          pendingSync: event.pendingSync,
         );
         emit(QuoteState.success(quote));
         // On rafraîchit la liste en arrière-plan
@@ -40,6 +42,12 @@ class QuoteBloc extends Bloc<QuoteEvent, QuoteState> {
       } catch (e) {
         emit(QuoteState.failure(e.toString()));
       }
+    });
+
+    on<QuoteSyncPendingRequested>((event, emit) async {
+      // Pour l'instant on ne fait rien, futur backend
+      // On pourrait recharger la liste si nécessaire
+      add(const QuoteListRequested());
     });
 
     on<QuoteStatusUpdated>((event, emit) async {

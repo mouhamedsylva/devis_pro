@@ -27,9 +27,17 @@ class QuoteRepositoryImpl implements QuoteRepository {
   }
 
   @override
+  Future<int> getSyncedQuotesCount() async {
+    final count = Sqflite.firstIntValue(
+      await _db.database.rawQuery('SELECT COUNT(*) FROM quotes WHERE pending_sync = 0'),
+    );
+    return count ?? 0;
+  }
+
+  @override
   Future<int> getPendingQuotesCount() async {
     final count = Sqflite.firstIntValue(
-      await _db.database.rawQuery('SELECT COUNT(*) FROM quotes WHERE status = ?', ['pending']),
+      await _db.database.rawQuery('SELECT COUNT(*) FROM quotes WHERE pending_sync = 1'),
     );
     return count ?? 0;
   }
@@ -80,6 +88,31 @@ class QuoteRepositoryImpl implements QuoteRepository {
   }
 
   @override
+  Future<List<Quote>> getPendingQuotes() async {
+    final rows = await _db.database.query(
+      'quotes',
+      where: 'pending_sync = ?',
+      whereArgs: [1],
+      orderBy: 'date DESC',
+    );
+    return rows.map(QuoteModel.fromMap).toList();
+  }
+
+  @override
+  Future<void> markAsSynced(int quoteId) async {
+    await _db.database.update(
+      'quotes',
+      {
+        'is_synced': 1,
+        'pending_sync': 0,
+        'synced_at': DateTime.now().toIso8601String(),
+      },
+      where: 'id = ?',
+      whereArgs: [quoteId],
+    );
+  }
+
+  @override
   Future<Quote> createDraft({
     int? clientId,
     String? clientName,
@@ -87,6 +120,8 @@ class QuoteRepositoryImpl implements QuoteRepository {
     required DateTime date,
     required List<QuoteItemDraft> items,
     required String status,
+    bool isSynced = true,
+    bool pendingSync = false,
   }) async {
     final db = _db.database;
 
@@ -116,6 +151,9 @@ class QuoteRepositoryImpl implements QuoteRepository {
         'totalHT': totalHT,
         'totalVAT': totalVAT,
         'totalTTC': totalTTC,
+        'is_synced': isSynced ? 1 : 0,
+        'pending_sync': pendingSync ? 1 : 0,
+        'synced_at': isSynced ? DateTime.now().toIso8601String() : null,
       });
 
       for (final it in items) {

@@ -55,6 +55,8 @@ dependencies:
   image_cropper: ^8.0.2
   flutter_contacts: ^1.1.7+1
   sizer: ^2.0.15
+  internet_connection_checker_plus: ^2.5.2
+  connectivity_banner: ^1.0.1
 
 dev_dependencies:
   flutter_test:

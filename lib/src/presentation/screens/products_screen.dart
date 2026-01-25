@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/entities/product.dart';
 import '../blocs/products/product_bloc.dart';
 import '../widgets/app_text_field.dart';
+import '../widgets/confirmation_dialog.dart';
 
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
@@ -143,13 +144,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
     final bloc = context.read<ProductBloc>();
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Supprimer'),
-        content: Text('Supprimer "${p.name}" ?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Supprimer')),
-        ],
+      builder: (_) => ConfirmationDialog(
+        title: 'Supprimer',
+        content: 'Voulez-vous vraiment supprimer "${p.name}" ?',
+        confirmText: 'Supprimer',
+        confirmColor: Colors.red,
+        onConfirm: () => Navigator.of(context).pop(true),
       ),
     );
     if (ok == true) {

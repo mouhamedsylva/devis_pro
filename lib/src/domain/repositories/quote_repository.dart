@@ -5,6 +5,7 @@ import '../entities/quote_item.dart';
 abstract class QuoteRepository {
   Future<List<Quote>> list();
   Future<int> getQuotesCount();
+  Future<int> getSyncedQuotesCount();
   Future<int> getPendingQuotesCount();
   Future<double> getMonthlyRevenue();
   Future<double> getMonthlyPotential();
@@ -16,7 +17,11 @@ abstract class QuoteRepository {
     required DateTime date,
     required List<QuoteItemDraft> items,
     required String status,
+    bool isSynced = true,
+    bool pendingSync = false,
   });
+  Future<List<Quote>> getPendingQuotes();
+  Future<void> markAsSynced(int quoteId);
   Future<void> updateStatus({required int quoteId, required String status});
 }
 

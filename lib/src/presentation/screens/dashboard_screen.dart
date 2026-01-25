@@ -16,6 +16,9 @@ import '../blocs/clients/client_bloc.dart';
 import '../blocs/products/product_bloc.dart';
 import '../blocs/quotes/quote_bloc.dart';
 import '../../core/constants/app_colors.dart';
+import 'package:devis_pro/src/presentation/widgets/custom_connectivity_banner.dart';
+import '../../core/services/connectivity_service.dart';
+import 'quote_editor_screen.dart';
 import 'clients_screen.dart';
 import 'company_screen.dart';
 import 'products_screen.dart';
@@ -30,11 +33,50 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   int _selectedIndex = 0;
+  bool _isOnline = true; // État de connexion internet
+  final ConnectivityService _connectivityService = ConnectivityService();
 
   @override
   void initState() {
     super.initState();
     context.read<DashboardBloc>().add(LoadDashboardData());
+    
+    // Démarrer le monitoring de la connexion
+    _connectivityService.startMonitoring();
+    _connectivityService.connectionStatus.listen((isConnected) {
+      if (mounted) {
+        // Auto-synchronisation si connexion rétablie
+        if (isConnected && !_isOnline) {
+          context.read<QuoteBloc>().add(const QuoteSyncPendingRequested());
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Synchronisation en cours ...'),
+              backgroundColor: Colors.blue,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+
+        setState(() {
+          _isOnline = isConnected;
+        });
+      }
+    });
+    
+    // Vérifier l'état initial
+    _connectivityService.checkConnection().then((isConnected) {
+      if (mounted) {
+        setState(() {
+          _isOnline = isConnected;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _connectivityService.stopMonitoring();
+    super.dispose();
   }
 
   void _onItemTapped(int index) {
@@ -78,14 +120,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
           listener: (context, state) => context.read<DashboardBloc>().add(LoadDashboardData()),
         ),
       ],
-      child: Scaffold(
-        backgroundColor: const Color(0xFFF5F5F5),
-        body: _getCurrentScreen(),
-        bottomNavigationBar: _buildBottomNavigationBar(),
-        floatingActionButton: _selectedIndex == 0 || _selectedIndex == 2
-            ? _buildFloatingActionButton(context)
-            : null,
-        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      child: CustomConnectivityBanner(
+        child: Scaffold(
+          backgroundColor: const Color(0xFFF5F5F5),
+          body: _getCurrentScreen(),
+          bottomNavigationBar: _buildBottomNavigationBar(),
+        ),
       ),
     );
   }
@@ -121,6 +161,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       icon: Icons.home_rounded,
                       label: 'Accueil',
                       index: 0,
+                      isEnabled: true,
                     ),
                   ),
                   Expanded(
@@ -130,6 +171,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       index: 1,
                       badge: pendingQuotes,
                       showBadge: pendingQuotes != null && pendingQuotes > 0,
+                      isEnabled: true,
                     ),
                   ),
                   Expanded(
@@ -138,6 +180,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       label: 'Clients',
                       index: 2,
                       badge: totalClients,
+                      isEnabled: _isOnline,
                     ),
                   ),
                   Expanded(
@@ -145,6 +188,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       icon: Icons.inventory_2_rounded,
                       label: 'Produits',
                       index: 3,
+                      isEnabled: _isOnline,
                     ),
                   ),
                   Expanded(
@@ -152,6 +196,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       icon: Icons.store_rounded,
                       label: 'Entreprise',
                       index: 4,
+                      isEnabled: _isOnline,
                     ),
                   ),
                 ],
@@ -169,11 +214,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required int index,
     int? badge,
     bool showBadge = false,
+    bool isEnabled = true,
   }) {
     final isSelected = _selectedIndex == index;
+    final color = isEnabled 
+        ? (isSelected ? AppColors.yellow : const Color(0xFF999999))
+        : Colors.grey.withOpacity(0.3);
 
     return GestureDetector(
-      onTap: () => _onItemTapped(index),
+      onTap: isEnabled ? () => _onItemTapped(index) : null,
       behavior: HitTestBehavior.opaque,
       child: TweenAnimationBuilder<double>(
         duration: const Duration(milliseconds: 300),
@@ -193,7 +242,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             decoration: BoxDecoration(
               color: Color.lerp(
                 Colors.transparent,
-                AppColors.yellow.withOpacity(0.15),
+                isEnabled ? AppColors.yellow.withOpacity(0.15) : Colors.transparent,
                 value,
               ),
               borderRadius: BorderRadius.circular(12),
@@ -220,11 +269,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         angle: value * 0.1, // Légère rotation
                         child: Icon(
                           icon,
-                          color: Color.lerp(
-                            const Color(0xFF999999),
-                            AppColors.yellow,
-                            value,
-                          ),
+                          color: isEnabled 
+                              ? Color.lerp(
+                                  const Color(0xFF999999),
+                                  AppColors.yellow,
+                                  value,
+                                )
+                              : color,
                           size: 26,
                         ),
                       ),
@@ -284,11 +335,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     duration: const Duration(milliseconds: 300),
                     curve: Curves.easeOutCubic,
                     style: TextStyle(
-                      color: Color.lerp(
-                        const Color(0xFF999999),
-                        AppColors.yellow,
-                        value,
-                      ),
+                      color: isEnabled 
+                          ? Color.lerp(
+                              const Color(0xFF999999),
+                              AppColors.yellow,
+                              value,
+                            )
+                          : color,
                       fontSize: 11,
                       fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                       letterSpacing: value * 0.5,
@@ -489,8 +542,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           
           const SizedBox(height: 16),
           
-          // Carte de revenu mensuel (mise en avant)
-          Container(
+          // Carte de revenu mensuel (mise en avant) - COMMENTÉE
+          /* Container(
             width: double.infinity,
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
@@ -627,7 +680,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
           
-          const SizedBox(height: 16),
+          const SizedBox(height: 16), */
           
           // Statistiques en grille
           Row(
@@ -637,7 +690,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   icon: Icons.people_rounded,
                   value: state.totalClients.toString(),
                   label: 'Clients',
-                  color: const Color(0xFF4CAF50),
+                  color: _isOnline ? AppColors.yellow : Colors.white,
+                  useGradient: _isOnline,
                 ),
               ),
               const SizedBox(width: 12),
@@ -646,7 +700,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   icon: Icons.inventory_2_rounded,
                   value: state.totalProducts.toString(),
                   label: 'Produits',
-                  color: const Color(0xFF2196F3),
+                  color: _isOnline ? AppColors.yellow : Colors.white,
+                  useGradient: _isOnline,
                 ),
               ),
             ],
@@ -661,7 +716,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   icon: Icons.receipt_long_rounded,
                   value: state.totalQuotes.toString(),
                   label: 'Devis total',
-                  color: const Color(0xFF9C27B0),
+                  color: _isOnline ? AppColors.yellow : Colors.white,
+                  useGradient: _isOnline,
                 ),
               ),
               const SizedBox(width: 12),
@@ -670,8 +726,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   icon: Icons.pending_actions_rounded,
                   value: state.pendingQuotes.toString(),
                   label: 'En attente',
-                  color: const Color(0xFFFF9800),
-                  showBadge: true,
+                  color: _isOnline ? Colors.white : Colors.blue,
+                  showBadge: !_isOnline,
+                  badgeText: 'OFFLINE',
                 ),
               ),
             ],
@@ -687,15 +744,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required String label,
     required Color color,
     bool showBadge = false,
+    bool useGradient = false,
+    String badgeText = 'NEW',
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        gradient: useGradient
+            ? LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.yellow,
+                  const Color(0xFFFFD700),
+                ],
+              )
+            : null,
+        color: useGradient ? null : Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: useGradient
+                ? AppColors.yellow.withOpacity(0.3)
+                : Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -709,12 +780,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: useGradient
+                      ? Colors.white.withOpacity(0.2)
+                      : color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   icon,
-                  color: color,
+                  color: useGradient ? Colors.white : color,
                   size: 22,
                 ),
               ),
@@ -723,13 +796,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                   decoration: BoxDecoration(
-                    color: color,
+                    color: useGradient ? Colors.white : color,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Text(
-                    'NEW',
+                  child: Text(
+                    badgeText,
                     style: TextStyle(
-                      color: Colors.white,
+                      color: useGradient ? AppColors.yellow : Colors.white,
                       fontSize: 9,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 0.5,
@@ -744,8 +817,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           
           Text(
             value,
-            style: const TextStyle(
-              color: Color(0xFF1A1A1A),
+            style: TextStyle(
+              color: useGradient ? Colors.white : const Color(0xFF1A1A1A),
               fontSize: 26,
               fontWeight: FontWeight.w900,
             ),
@@ -755,8 +828,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           
           Text(
             label,
-            style: const TextStyle(
-              color: Color(0xFF666666),
+            style: TextStyle(
+              color: useGradient ? Colors.white70 : const Color(0xFF666666),
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -788,10 +861,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               Expanded(
                 child: _buildQuickActionButton(
-                  icon: Icons.add_rounded,
-                  label: 'Nouveau produit',
+                  icon: Icons.add_circle_outline,
+                  label: 'Nouveau devis',
                   color: AppColors.yellow,
-                  onTap: () => _onItemTapped(3), // Aller à l'onglet Devis
+                  onTap: () {
+                    // Aller à l'écran de création de devis directement
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const QuoteEditorScreen(),
+                      ),
+                    ).then((_) {
+                      if (context.mounted) {
+                        context.read<DashboardBloc>().add(LoadDashboardData());
+                      }
+                    });
+                  },
                 ),
               ),
               const SizedBox(width: 12),
@@ -1130,7 +1215,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ],
       ),
       child: FloatingActionButton.extended(
-        onPressed: () => _onItemTapped(2), // Aller à l'onglet Devis
+        onPressed: () => _onItemTapped(1), // Aller à l'onglet Devis
         backgroundColor: Colors.transparent,
         elevation: 0,
         icon: const Icon(

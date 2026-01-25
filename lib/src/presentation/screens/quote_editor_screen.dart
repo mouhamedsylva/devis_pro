@@ -19,10 +19,16 @@ import '../blocs/quotes/quote_bloc.dart';
 import '../blocs/template/template_bloc.dart';
 import '../blocs/template/template_event.dart';
 import '../blocs/template/template_state.dart';
+import '../blocs/template/template_state.dart';
 import '../widgets/quote_preview_dialog.dart';
 import '../widgets/success_dialog.dart';
 import '../../domain/repositories/company_repository.dart';
 import '../../domain/repositories/client_repository.dart';
+import '../../core/services/connectivity_service.dart';
+import '../widgets/offline_indicator.dart';
+import '../widgets/connectivity_wrapper.dart';
+import 'package:devis_pro/src/presentation/widgets/custom_connectivity_banner.dart';
+import '../widgets/confirmation_dialog.dart';
 
 class QuoteEditorScreen extends StatefulWidget {
   const QuoteEditorScreen({super.key});
@@ -36,21 +42,52 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
   final _clientNameController = TextEditingController();
   final _clientPhoneController = TextEditingController();
   
+  final _formKey = GlobalKey<FormState>();
+
+  // Connectivity
+  bool _isOnline = true;
+  final ConnectivityService _connectivityService = ConnectivityService();
+
+  // Data
+  List<Product> _products = [];
+  
+  // Form Data
+  int? _selectedClientId;
+  String? _clientName;
+  String? _clientPhone;
+  DateTime _date = DateTime.now();
   final List<_Line> _lines = [];
 
   bool _loading = true;
-  List<Product> _products = const [];
 
   @override
   void initState() {
     super.initState();
     _loadProducts();
+    
+    // Connectivity
+    _connectivityService.startMonitoring();
+    _connectivityService.connectionStatus.listen((isConnected) {
+      if (mounted) {
+        setState(() {
+          _isOnline = isConnected;
+        });
+      }
+    });
+    _connectivityService.checkConnection().then((isConnected) {
+      if (mounted) {
+        setState(() {
+          _isOnline = isConnected;
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
     _clientNameController.dispose();
     _clientPhoneController.dispose();
+    _connectivityService.dispose();
     super.dispose();
   }
 
@@ -64,31 +101,112 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
     });
   }
 
+  void _submitQuote() {
+    if (_clientNameController.text.isEmpty || _clientPhoneController.text.isEmpty || _lines.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Veuillez remplir les informations client et ajouter des articles.')),
+      );
+      return;
+    }
+
+    final items = _lines
+        .map(
+          (l) => QuoteItemDraft(
+            productName: l.name,
+            unitPrice: l.unitPrice,
+            quantity: l.quantity,
+            vatRate: l.vatRate,
+            unit: l.unit,
+          ),
+        )
+        .toList(growable: false);
+
+    // En mode offline, on marque comme en attente de sync
+    final isSynced = _isOnline;
+    final pendingSync = !_isOnline;
+
+    context.read<QuoteBloc>().add(
+          QuoteCreateRequested(
+            clientId: null,
+            clientName: _clientNameController.text,
+            clientPhone: _clientPhoneController.text,
+            date: DateTime.now(),
+            items: items,
+            status: 'Brouillon',
+            isSynced: isSynced,
+            pendingSync: pendingSync,
+          ),
+        );
+        
+    if (!_isOnline) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Devis sauvegardé localement (Mode Offline)'),
+          backgroundColor: Colors.blue,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
-      appBar: AppBar(
-        title: const Text('Nouveau Devis'),
-        elevation: 0,
-        centerTitle: true,
-        actions: [
-          if (!_loading) ...[
-            IconButton(
-              icon: const Icon(Icons.note_add),
-              tooltip: 'Utiliser un modèle',
-              onPressed: () => _showTemplatesDialog(context),
-            ),
-            IconButton(
-              icon: const Icon(Icons.info_outline),
-              onPressed: () => _showHelp(context),
+    return CustomConnectivityBanner(
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF5F5F5),
+        appBar: AppBar(
+          title: const Text('Nouveau Devis'),
+          elevation: 0,
+          centerTitle: true,
+          actions: [
+            if (!_loading) ...[
+              IconButton(
+                icon: const Icon(Icons.note_add),
+                tooltip: 'Utiliser un modèle',
+                onPressed: () => _showTemplatesDialog(context),
+              ),
+              IconButton(
+                icon: const Icon(Icons.info_outline),
+                onPressed: () => _showHelp(context),
+              ),
+            ],
+            // Save Button
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: FloatingActionButton.extended(
+                onPressed: _submitQuote,
+                backgroundColor: AppColors.yellow,
+                label: Row(
+                  children: [
+                      Text(
+                        _isOnline ? 'SAUVEGARDER' : 'SAUVEGARDER (OFFLINE)',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    if (!_isOnline) ...[
+                      const SizedBox(width: 8),
+                      const Icon(Icons.cloud_off, size: 16, color: Colors.blueAccent),
+                    ],
+                  ],
+                ),
+                icon: _isOnline ? const Icon(Icons.save, color: Colors.white) : null,
+              ),
             ),
           ],
-        ],
+        ),
+        body: Column(
+          children: [
+            Expanded(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _buildEditorBody(),
+            ),
+          ],
+        ),
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _buildEditorBody(),
     );
   }
 
@@ -651,6 +769,18 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
             child: const Icon(Icons.delete_outline, color: Colors.white),
           ),
           onDismissed: (_) => setState(() => _lines.removeAt(i)),
+          confirmDismiss: (direction) async {
+            return await showDialog<bool>(
+              context: context,
+              builder: (context) => ConfirmationDialog(
+                title: 'Supprimer l\'article ?',
+                content: 'Voulez-vous vraiment retirer "${l.name}" de ce devis ?',
+                confirmText: 'Supprimer',
+                confirmColor: Colors.red,
+                onConfirm: () => Navigator.of(context).pop(true),
+              ),
+            ) ?? false;
+          },
           child: Container(
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.all(20),
@@ -899,33 +1029,7 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
               width: double.infinity,
               height: 56,
               child: ElevatedButton(
-                onPressed: canSave
-                    ? () {
-                        final items = _lines
-                            .map(
-                              (l) => QuoteItemDraft(
-                                productName: l.name,
-                                unitPrice: l.unitPrice,
-                                quantity: l.quantity,
-                                vatRate: l.vatRate,
-                                unit: l.unit,
-                              ),
-                            )
-                            .toList(growable: false);
-                        // Créer le devis avec les informations client saisies directement
-                        // Note: clientId est null car on n'utilise plus la table clients
-                        context.read<QuoteBloc>().add(
-                              QuoteCreateRequested(
-                                clientId: null,
-                                clientName: _clientNameController.text,
-                                clientPhone: _clientPhoneController.text,
-                                date: DateTime.now(),
-                                items: items,
-                                status: 'Brouillon',
-                              ),
-                            );
-                      }
-                    : null,
+                onPressed: canSave ? _submitQuote : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.yellow,
                   foregroundColor: Colors.white,

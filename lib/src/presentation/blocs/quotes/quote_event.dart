@@ -11,7 +11,7 @@ class QuoteListRequested extends QuoteEvent {
   const QuoteListRequested();
 }
 
-class QuoteCreateRequested extends QuoteEvent {
+  class QuoteCreateRequested extends QuoteEvent {
   const QuoteCreateRequested({
     this.clientId,
     this.clientName,
@@ -19,17 +19,25 @@ class QuoteCreateRequested extends QuoteEvent {
     required this.date,
     required this.items,
     required this.status,
+    this.isSynced = true,
+    this.pendingSync = false,
   });
 
-  final int? clientId; // Nullable : si null, utiliser clientName et clientPhone
-  final String? clientName; // Nom du client si pas de clientId
-  final String? clientPhone; // Téléphone du client si pas de clientId
+  final int? clientId;
+  final String? clientName;
+  final String? clientPhone;
   final DateTime date;
   final List<QuoteItemDraft> items;
   final String status;
+  final bool isSynced;
+  final bool pendingSync;
 
   @override
-  List<Object?> get props => [clientId, clientName, clientPhone, date, items, status];
+  List<Object?> get props => [clientId, clientName, clientPhone, date, items, status, isSynced, pendingSync];
+}
+
+class QuoteSyncPendingRequested extends QuoteEvent {
+  const QuoteSyncPendingRequested();
 }
 
 class QuoteStatusUpdated extends QuoteEvent {

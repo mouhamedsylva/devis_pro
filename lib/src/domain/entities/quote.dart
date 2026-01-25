@@ -13,6 +13,9 @@ class Quote extends Equatable {
     required this.totalHT,
     required this.totalVAT,
     required this.totalTTC,
+    this.isSynced = true,        // Synchronisé avec le backend (futur)
+    this.syncedAt,               // Date de dernière synchronisation
+    this.pendingSync = false,    // En attente de synchronisation
   });
 
   final int id;
@@ -25,8 +28,25 @@ class Quote extends Equatable {
   final double totalHT;
   final double totalVAT;
   final double totalTTC;
+  final bool isSynced; // Synchronisé avec le backend
+  final DateTime? syncedAt; // Date de dernière synchronisation
+  final bool pendingSync; // En attente de synchronisation
 
   @override
-  List<Object?> get props => [id, quoteNumber, clientId, clientName, clientPhone, date, status, totalHT, totalVAT, totalTTC];
+  List<Object?> get props => [
+        id,
+        quoteNumber,
+        clientId,
+        clientName,
+        clientPhone,
+        date,
+        status,
+        totalHT,
+        totalVAT,
+        totalTTC,
+        isSynced,
+        syncedAt,
+        pendingSync,
+      ];
 }
 
