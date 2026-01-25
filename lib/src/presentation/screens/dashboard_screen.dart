@@ -726,7 +726,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   icon: Icons.pending_actions_rounded,
                   value: state.pendingQuotes.toString(),
                   label: 'En attente',
-                  color: _isOnline ? Colors.white : Colors.blue,
+                  color: _isOnline ? const Color(0xFF9E9E9E) : Colors.white, // Icon/Badge color
+                  backgroundColor: _isOnline ? Colors.white : Colors.blue, // NEW: Full Card Blue if Offline
+                  contentColor: _isOnline ? null : Colors.white, // NEW: White text if Offline
                   showBadge: !_isOnline,
                   badgeText: 'OFFLINE',
                 ),
@@ -745,8 +747,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required Color color,
     bool showBadge = false,
     bool useGradient = false,
-    String badgeText = 'NEW',
+    Color? backgroundColor,
+    Color? contentColor,
+    String? badgeText,
   }) {
+    final effectiveContentColor = contentColor ?? (useGradient ? Colors.white : const Color(0xFF1A1A1A));
+    final effectiveSubColor = contentColor?.withOpacity(0.7) ?? (useGradient ? Colors.white70 : const Color(0xFF666666));
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -760,12 +767,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ],
               )
             : null,
-        color: useGradient ? null : Colors.white,
+        color: useGradient ? null : (backgroundColor ?? Colors.white),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: useGradient
-                ? AppColors.yellow.withOpacity(0.3)
+            color: (useGradient || backgroundColor != null)
+                ? (backgroundColor ?? AppColors.yellow).withOpacity(0.3)
                 : Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
@@ -782,12 +789,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 decoration: BoxDecoration(
                   color: useGradient
                       ? Colors.white.withOpacity(0.2)
-                      : color.withOpacity(0.1),
+                      : (backgroundColor != null ? Colors.white.withOpacity(0.2) : color.withOpacity(0.1)),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   icon,
-                  color: useGradient ? Colors.white : color,
+                  color: useGradient || backgroundColor != null ? Colors.white : color,
                   size: 22,
                 ),
               ),
@@ -796,13 +803,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                   decoration: BoxDecoration(
-                    color: useGradient ? Colors.white : color,
+                    color: useGradient || backgroundColor != null ? Colors.white : color,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    badgeText,
+                    badgeText ?? '',
                     style: TextStyle(
-                      color: useGradient ? AppColors.yellow : Colors.white,
+                      color: useGradient || backgroundColor != null ? (backgroundColor ?? AppColors.yellow) : Colors.white,
                       fontSize: 9,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 0.5,
@@ -818,7 +825,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Text(
             value,
             style: TextStyle(
-              color: useGradient ? Colors.white : const Color(0xFF1A1A1A),
+              color: effectiveContentColor,
               fontSize: 26,
               fontWeight: FontWeight.w900,
             ),
@@ -829,7 +836,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Text(
             label,
             style: TextStyle(
-              color: useGradient ? Colors.white70 : const Color(0xFF666666),
+              color: effectiveSubColor,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),

@@ -362,6 +362,8 @@ class _CompanyScreenState extends State<CompanyScreen> {
                         title: 'Identité de l\'entreprise',
                         icon: Icons.business_center,
                         children: [
+                          _buildLogoField(),
+                          const SizedBox(height: 24),
                           AppTextField(
                             controller: _nameCtrl,
                             label: 'Nom commercial',
@@ -596,6 +598,83 @@ class _CompanyScreenState extends State<CompanyScreen> {
         size: 40,
         color: Colors.grey[400],
       ),
+    );
+  }
+
+  Widget _buildLogoField() {
+    final logoPath = _selectedLogoPath;
+    
+    return Row(
+      children: [
+        // Aperçu du logo
+        Container(
+          width: 80,
+          height: 80,
+          decoration: BoxDecoration(
+            color: Colors.grey[100],
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey[300]!),
+            image: logoPath != null
+                ? DecorationImage(
+                    image: FileImage(File(logoPath)),
+                    fit: BoxFit.cover,
+                  )
+                : null,
+          ),
+          child: logoPath == null
+              ? Icon(Icons.business, color: Colors.grey[400], size: 32)
+              : null,
+        ),
+        const SizedBox(width: 16),
+        // Boutons actions
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Logo de l\'entreprise',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: _pickLogo,
+                    icon: const Icon(Icons.upload_rounded, size: 16),
+                    label: Text(logoPath == null ? 'Importer' : 'Modifier'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFF9B000),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      minimumSize: const Size(0, 36),
+                    ),
+                  ),
+                  if (logoPath != null) ...[
+                    const SizedBox(width: 8),
+                    TextButton(
+                      onPressed: () {
+                        setState(() {
+                          _selectedLogoPath = null;
+                        });
+                      },
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                        minimumSize: const Size(0, 36),
+                      ),
+                      child: const Text('Supprimer'),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

@@ -45,9 +45,23 @@ class QuoteBloc extends Bloc<QuoteEvent, QuoteState> {
     });
 
     on<QuoteSyncPendingRequested>((event, emit) async {
-      // Pour l'instant on ne fait rien, futur backend
-      // On pourrait recharger la liste si nécessaire
-      add(const QuoteListRequested());
+      try {
+        final pendingQuotes = await _quoteRepository.getPendingQuotes();
+        if (pendingQuotes.isNotEmpty) {
+          // Simulation d'un délai réseau (1s)
+          await Future.delayed(const Duration(seconds: 1));
+          
+          for (final quote in pendingQuotes) {
+            // Ici, on appellerait normalement l'API backend
+            await _quoteRepository.markAsSynced(quote.id);
+          }
+          
+          // Recharger la liste mise à jour
+          add(const QuoteListRequested());
+        }
+      } catch (e) {
+        emit(QuoteState.failure('Erreur de synchronisation: $e'));
+      }
     });
 
     on<QuoteStatusUpdated>((event, emit) async {
