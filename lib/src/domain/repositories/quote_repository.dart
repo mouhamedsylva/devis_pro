@@ -7,6 +7,7 @@ abstract class QuoteRepository {
   Future<int> getQuotesCount();
   Future<int> getPendingQuotesCount();
   Future<double> getMonthlyRevenue();
+  Future<double> getMonthlyPotential();
   Future<List<QuoteItem>> listItems(int quoteId);
   Future<Quote> createDraft({
     int? clientId,

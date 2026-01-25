@@ -106,7 +106,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
   void _verifyOTP() {
     if (_disposed || !mounted) return;
     
-    try {
+    try { 
       if (_otpController.text.length == 6) {
         final otpCode = _otpController.text;
         

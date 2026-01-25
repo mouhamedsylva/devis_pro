@@ -40,6 +40,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       final totalQuotes = await _quoteRepository.getQuotesCount();
       final pendingQuotes = await _quoteRepository.getPendingQuotesCount();
       final monthlyRevenue = await _quoteRepository.getMonthlyRevenue();
+      final monthlyPotential = await _quoteRepository.getMonthlyPotential();
 
       // Charger les activités récentes
       final recentActivities = await _loadRecentActivities();
@@ -50,6 +51,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         totalQuotes: totalQuotes,
         pendingQuotes: pendingQuotes,
         monthlyRevenue: monthlyRevenue,
+        monthlyPotential: monthlyPotential,
         recentActivities: recentActivities,
       ));
     } catch (e) {

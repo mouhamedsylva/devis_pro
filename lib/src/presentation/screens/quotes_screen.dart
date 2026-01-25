@@ -202,177 +202,150 @@ class _QuotesScreenState extends State<QuotesScreen> {
   Widget _buildQuoteCard(BuildContext context, dynamic quote) {
     final statusColor = _getStatusColor(quote.status);
     final statusIcon = _getStatusIcon(quote.status);
+    final clientName = quote.clientName ?? 'Client non spécifié';
     
     return Container(
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.withOpacity(0.15), width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () async {
-            // Navigation vers l'éditeur pour voir/modifier le devis
-            await Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const QuoteEditorScreen()),
-            );
-            if (!context.mounted) return;
-            context.read<QuoteBloc>().add(const QuoteListRequested());
-          },
+          onTap: () => _showQuotePreview(context, quote),
           borderRadius: BorderRadius.circular(16),
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                // En-tête : Numéro + Badge Statut
-                Row(
-                  children: [
-                    // Icône document
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: AppColors.yellow.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        Icons.description_rounded,
-                        color: AppColors.yellow,
-                        size: 22,
-                      ),
-                    ),
-                    
-                    const SizedBox(width: 12),
-                    
-                    // Numéro de devis
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            quote.quoteNumber,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w900,
-                              color: Color(0xFF1A1A1A),
-                              letterSpacing: 0.3,
-                            ),
+                // Icône + Info principale
+                Expanded(
+                  child: Row(
+                    children: [
+                      // Icône
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [AppColors.yellow, AppColors.yellow.withOpacity(0.8)],
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            Formatters.dateShort(quote.date),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    
-                    // Badge statut
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: statusColor.withOpacity(0.3),
-                          width: 1,
+                          borderRadius: BorderRadius.circular(12),
                         ),
+                        child: const Icon(Icons.description_rounded, color: Colors.white, size: 20),
+                      ),
+                      
+                      const SizedBox(width: 12),
+                      
+                      // Infos
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Numéro + Date
+                            Text(
+                              quote.quoteNumber,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF1A1A1A),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            // Date
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.calendar_today_rounded,
+                                  size: 11,
+                                  color: Colors.grey[600],
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  Formatters.dateShort(quote.date),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey[600],
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            // Client
+                            Row(
+                              children: [
+                                Icon(Icons.person_outline, size: 14, color: Colors.grey[600]),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    clientName,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.grey[700],
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(width: 12),
+                
+                // Montant + Statut
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    // Montant
+                    Text(
+                      Formatters.moneyCfa(quote.totalTTC, currencyLabel: ''),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF1A1A1A),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    // Badge statut compact
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: statusColor,
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            statusIcon,
-                            size: 14,
-                            color: statusColor,
-                          ),
-                          const SizedBox(width: 6),
+                          Icon(statusIcon, size: 12, color: Colors.white),
+                          const SizedBox(width: 4),
                           Text(
                             quote.status,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: statusColor,
-                              letterSpacing: 0.3,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                
-                const SizedBox(height: 16),
-                
-                // Divider
-                Container(
-                  height: 1,
-                  color: Colors.grey[200],
-                ),
-                
-                const SizedBox(height: 16),
-                
-                // Montant + Actions
-                Row(
-                  children: [
-                    // Montant TTC
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Montant TTC',
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 11,
-                              color: Colors.grey[600],
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.5,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              Text(
-                                '${quote.totalTTC.toStringAsFixed(0)}',
-                                style: const TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w900,
-                                  color: Color(0xFF1A1A1A),
-                                  letterSpacing: 0.3,
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'FCFA',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            ],
                           ),
                         ],
                       ),
-                    ),
-                    
-                    // Action : Voir
-                    _buildActionButton(
-                      icon: Icons.visibility_rounded,
-                      label: 'Voir',
-                      color: AppColors.yellow,
-                      onTap: () => _showQuotePreview(context, quote),
                     ),
                   ],
                 ),

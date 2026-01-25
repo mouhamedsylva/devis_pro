@@ -20,6 +20,7 @@ import '../blocs/template/template_bloc.dart';
 import '../blocs/template/template_event.dart';
 import '../blocs/template/template_state.dart';
 import '../widgets/quote_preview_dialog.dart';
+import '../widgets/success_dialog.dart';
 import '../../domain/repositories/company_repository.dart';
 import '../../domain/repositories/client_repository.dart';
 
@@ -95,24 +96,36 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
     return BlocListener<QuoteBloc, QuoteState>(
       listener: (context, state) async {
         if (state.status == QuoteStatus.success && state.createdQuote != null) {
+          // 1. Afficher le modal de succès style SweetAlert
+          await showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (_) => SuccessDialog(
+              title: 'Devis Généré !',
+              message: 'Le devis ${state.createdQuote!.quoteNumber} a été créé avec succès.',
+              buttonText: 'Voir l\'aperçu PDF',
+              onConfirm: () => Navigator.of(context).pop(),
+            ),
+          );
+
+          // 2. Charger les données pour l'aperçu
           final companyRepo = context.read<CompanyRepository>();
           final company = await companyRepo.getCompany();
           
           if (!mounted) return;
           
-          // Récupérer les items réels depuis le repo pour être sûr (ou utiliser _lines)
           final quoteRepo = context.read<QuoteRepository>();
           final items = await quoteRepo.listItems(state.createdQuote!.id);
 
           if (!mounted) return;
 
+          // 3. Afficher l'aperçu
           await showDialog(
             context: context,
             builder: (_) => QuotePreviewDialog(
               quote: state.createdQuote!,
               items: items,
               company: company,
-              // client: ... // Pas de client régulier ici car info saisie direct
             ),
           );
           

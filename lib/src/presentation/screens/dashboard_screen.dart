@@ -12,6 +12,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../blocs/auth/auth_bloc.dart';
+import '../blocs/clients/client_bloc.dart';
+import '../blocs/products/product_bloc.dart';
+import '../blocs/quotes/quote_bloc.dart';
 import '../../core/constants/app_colors.dart';
 import 'clients_screen.dart';
 import 'company_screen.dart';
@@ -60,14 +63,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
-      body: _getCurrentScreen(),
-      bottomNavigationBar: _buildBottomNavigationBar(),
-      floatingActionButton: _selectedIndex == 0 || _selectedIndex == 2
-          ? _buildFloatingActionButton(context)
-          : null,
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<ClientBloc, ClientState>(
+          listenWhen: (p, c) => p.status != c.status && c.status == ClientStatus.loaded,
+          listener: (context, state) => context.read<DashboardBloc>().add(LoadDashboardData()),
+        ),
+        BlocListener<ProductBloc, ProductState>(
+          listenWhen: (p, c) => p.status != c.status && c.status == ProductStatus.loaded,
+          listener: (context, state) => context.read<DashboardBloc>().add(LoadDashboardData()),
+        ),
+        BlocListener<QuoteBloc, QuoteState>(
+          listenWhen: (p, c) => p.status != c.status && (c.status == QuoteStatus.loaded || c.status == QuoteStatus.success),
+          listener: (context, state) => context.read<DashboardBloc>().add(LoadDashboardData()),
+        ),
+      ],
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF5F5F5),
+        body: _getCurrentScreen(),
+        bottomNavigationBar: _buildBottomNavigationBar(),
+        floatingActionButton: _selectedIndex == 0 || _selectedIndex == 2
+            ? _buildFloatingActionButton(context)
+            : null,
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      ),
     );
   }
 
@@ -326,11 +345,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                     const SizedBox(height: 32),
 
-                    // Raccourcis de navigation
-                    _buildQuickNavigation(context),
-
-                    const SizedBox(height: 32),
-
                     // Section activité récente
                     _buildRecentActivity(state),
 
@@ -409,7 +423,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'DEVISPRO',
+                              'DEVIS PRO',
                               style: TextStyle(
                                 color: AppColors.yellow,
                                 fontSize: 22,
@@ -538,24 +552,75 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 
                 const SizedBox(height: 16),
                 
-                Text(
-                  '${_formatCurrency(state.monthlyRevenue)} FCFA',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 32,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.5,
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${_formatCurrency(state.monthlyRevenue)}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 28,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const Text(
+                            'Gagné (Acceptés)',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      width: 1,
+                      height: 40,
+                      color: Colors.white24,
+                      margin: const EdgeInsets.symmetric(horizontal: 16),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${_formatCurrency(state.monthlyPotential)}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 28,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const Text(
+                            'En cours (Envoyés)',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
                 
-                const SizedBox(height: 4),
+                const SizedBox(height: 8),
                 
                 const Text(
-                  'Chiffre d\'affaires',
+                  'Volume d\'affaires mensuel (FCFA)',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.5,
                   ),
                 ),
               ],
@@ -724,9 +789,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Expanded(
                 child: _buildQuickActionButton(
                   icon: Icons.add_rounded,
-                  label: 'Nouveau devis',
+                  label: 'Nouveau produit',
                   color: AppColors.yellow,
-                  onTap: () => _onItemTapped(2), // Aller à l'onglet Devis
+                  onTap: () => _onItemTapped(3), // Aller à l'onglet Devis
                 ),
               ),
               const SizedBox(width: 12),
@@ -1098,74 +1163,95 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _confirmLogout(BuildContext context) async {
     final confirmed = await showDialog<bool>(
       context: context,
+      barrierDismissible: true,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
         ),
-        title: Row(
+        contentPadding: const EdgeInsets.all(24),
+        title: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
+                color: Colors.orange.withOpacity(0.15),
+                shape: BoxShape.circle,
               ),
               child: const Icon(
                 Icons.logout_rounded,
                 color: Colors.orange,
-                size: 24,
+                size: 32,
               ),
             ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Text(
-                'Déconnexion',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
+            const SizedBox(height: 16),
+            const Text(
+              'Déconnexion',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
               ),
             ),
           ],
         ),
         content: const Text(
-          'Êtes-vous sûr de vouloir vous déconnecter ?',
+          'Êtes-vous sûr de vouloir vous déconnecter de votre compte ?',
+          textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 15,
             height: 1.5,
+            color: Colors.black54,
           ),
         ),
+        actionsAlignment: MainAxisAlignment.center,
+        actionsPadding: const EdgeInsets.only(bottom: 16, left: 16, right: 16),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            ),
-            child: const Text(
-              'Annuler',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: const BorderSide(color: Colors.grey, width: 1.5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Annuler',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Se déconnecter',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
               ),
-            ),
-            child: const Text(
-              'Déconnexion',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+            ],
           ),
         ],
       ),

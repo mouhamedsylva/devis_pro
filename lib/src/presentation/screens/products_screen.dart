@@ -308,18 +308,24 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           children: [
                             TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Annuler')),
                             const SizedBox(width: 12),
-                            ElevatedButton(
-                              onPressed: () {
-                                if (nameCtrl.text.trim().isEmpty) return;
-                                Navigator.pop(dialogContext, {
-                                  'name': nameCtrl.text.trim(),
-                                  'price': double.tryParse(priceCtrl.text.trim().replaceAll(',', '.')) ?? 0,
-                                  'vat': (double.tryParse(vatCtrl.text.trim().replaceAll(',', '.')) ?? 18) / 100,
-                                  'unit': selectedUnit,
-                                });
-                              },
-                              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF9B000), foregroundColor: Colors.white),
-                              child: const Text('Enregistrer'),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  if (nameCtrl.text.trim().isEmpty) return;
+                                  Navigator.pop(dialogContext, {
+                                    'name': nameCtrl.text.trim(),
+                                    'price': double.tryParse(priceCtrl.text.trim().replaceAll(',', '.')) ?? 0,
+                                    'vat': (double.tryParse(vatCtrl.text.trim().replaceAll(',', '.')) ?? 18) / 100,
+                                    'unit': selectedUnit,
+                                  });
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFF9B000),
+                                  foregroundColor: Colors.white,
+                                  minimumSize: const Size(double.infinity, 52), // Still full width of Expanded
+                                ),
+                                child: const Text('Enregistrer'),
+                              ),
                             ),
                           ],
                         ),

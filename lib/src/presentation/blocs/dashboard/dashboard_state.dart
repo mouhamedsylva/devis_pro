@@ -34,6 +34,7 @@ class DashboardLoaded extends DashboardState {
   final int totalQuotes;
   final int pendingQuotes;
   final double monthlyRevenue;
+  final double monthlyPotential;
   final List<RecentActivity> recentActivities;
 
   const DashboardLoaded({
@@ -42,6 +43,7 @@ class DashboardLoaded extends DashboardState {
     required this.totalQuotes,
     required this.pendingQuotes,
     required this.monthlyRevenue,
+    required this.monthlyPotential,
     required this.recentActivities,
   });
 
@@ -52,6 +54,7 @@ class DashboardLoaded extends DashboardState {
         totalQuotes,
         pendingQuotes,
         monthlyRevenue,
+        monthlyPotential,
         recentActivities,
       ];
 }

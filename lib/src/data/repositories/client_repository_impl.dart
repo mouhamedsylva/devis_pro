@@ -1,6 +1,7 @@
 /// Impl SQLite du ClientRepository.
 import 'package:sqflite/sqflite.dart';
 
+import '../../core/utils/formatters.dart';
 import '../../domain/entities/client.dart';
 import '../../domain/repositories/client_repository.dart';
 import '../datasources/local/app_database.dart';
@@ -40,9 +41,10 @@ class ClientRepositoryImpl implements ClientRepository {
 
   @override
   Future<Client> create({required String name, required String phone, required String address}) async {
+    final normalizedPhone = Formatters.normalizePhoneNumber(phone);
     final id = await _db.database.insert(
       'clients',
-      ClientModel.toInsert(name: name, phone: phone, address: address),
+      ClientModel.toInsert(name: name, phone: normalizedPhone, address: address),
     );
     final rows = await _db.database.query('clients', where: 'id = ?', whereArgs: [id], limit: 1);
     return ClientModel.fromMap(rows.first);
@@ -50,7 +52,9 @@ class ClientRepositoryImpl implements ClientRepository {
 
   @override
   Future<void> update(Client client) async {
-    await _db.database.update('clients', ClientModel.toMap(client), where: 'id = ?', whereArgs: [client.id]);
+    final normalizedPhone = Formatters.normalizePhoneNumber(client.phone);
+    final clientToUpdate = client.copyWith(phone: normalizedPhone);
+    await _db.database.update('clients', ClientModel.toMap(clientToUpdate), where: 'id = ?', whereArgs: [client.id]);
   }
 
   @override

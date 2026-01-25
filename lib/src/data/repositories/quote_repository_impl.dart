@@ -42,11 +42,28 @@ class QuoteRepositoryImpl implements QuoteRepository {
 
     final result = await _db.database.rawQuery(
       'SELECT SUM(totalTTC) as revenue FROM quotes WHERE status = ? AND date BETWEEN ? AND ?',
-      ['accepted', firstDayOfMonth, lastDayOfMonth],
+      ['Accepté', firstDayOfMonth, lastDayOfMonth],
     );
 
     if (result.isNotEmpty && result.first['revenue'] != null) {
       return (result.first['revenue'] as num).toDouble();
+    }
+    return 0.0;
+  }
+
+  @override
+  Future<double> getMonthlyPotential() async {
+    final now = DateTime.now();
+    final firstDayOfMonth = DateTime(now.year, now.month, 1).toIso8601String();
+    final lastDayOfMonth = DateTime(now.year, now.month + 1, 0).toIso8601String();
+
+    final result = await _db.database.rawQuery(
+      'SELECT SUM(totalTTC) as potential FROM quotes WHERE status = ? AND date BETWEEN ? AND ?',
+      ['Envoyé', firstDayOfMonth, lastDayOfMonth],
+    );
+
+    if (result.isNotEmpty && result.first['potential'] != null) {
+      return (result.first['potential'] as num).toDouble();
     }
     return 0.0;
   }
