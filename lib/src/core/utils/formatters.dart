@@ -5,6 +5,9 @@ class Formatters {
   /// Format simple: 21/01/2026
   static String dateShort(DateTime dt) => DateFormat('dd/MM/yyyy').format(dt);
 
+  /// Format complet: 21/01/2026 à 14:30
+  static String dateTimeFull(DateTime dt) => DateFormat('dd/MM/yyyy à HH:mm').format(dt);
+
   /// Affichage monnaie en FCFA (XOF/XAF).
   ///
   /// Exemple: 12500 -> "12 500 FCFA"
@@ -64,4 +67,3 @@ class Formatters {
 
   const Formatters._();
 }
-

@@ -4,11 +4,12 @@ import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/formatters.dart';
-import '../../../domain/entities/client.dart';
-import '../../../domain/entities/quote.dart';
+import '../../../domain/entities/activity_log.dart';
 import '../../../domain/repositories/client_repository.dart';
 import '../../../domain/repositories/product_repository.dart';
 import '../../../domain/repositories/quote_repository.dart';
+import '../../../domain/repositories/activity_repository.dart';
+import '../../../domain/repositories/template_repository.dart';
 
 part 'dashboard_event.dart';
 part 'dashboard_state.dart';
@@ -17,14 +18,20 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
   final ClientRepository _clientRepository;
   final ProductRepository _productRepository;
   final QuoteRepository _quoteRepository;
+  final ActivityRepository _activityRepository;
+  final TemplateRepository _templateRepository;
 
   DashboardBloc({
     required ClientRepository clientRepository,
     required ProductRepository productRepository,
     required QuoteRepository quoteRepository,
+    required ActivityRepository activityRepository,
+    required TemplateRepository templateRepository,
   })  : _clientRepository = clientRepository,
         _productRepository = productRepository,
         _quoteRepository = quoteRepository,
+        _activityRepository = activityRepository,
+        _templateRepository = templateRepository,
         super(DashboardInitial()) {
     on<LoadDashboardData>(_onLoadDashboardData);
   }
@@ -37,19 +44,28 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     try {
       final totalClients = await _clientRepository.getClientsCount();
       final totalProducts = await _productRepository.getProductsCount();
-      final totalQuotes = await _quoteRepository.getSyncedQuotesCount();
-      final pendingQuotes = await _quoteRepository.getPendingQuotesCount();
+      final totalQuotes = await _quoteRepository.getQuotesCount();
+      final templates = await _templateRepository.getAllTemplates();
       final monthlyRevenue = await _quoteRepository.getMonthlyRevenue();
       final monthlyPotential = await _quoteRepository.getMonthlyPotential();
 
-      // Charger les activités récentes
-      final recentActivities = await _loadRecentActivities();
+      // Charger les activités récentes (5 dernières)
+      final logs = await _activityRepository.list(limit: 5);
+      final recentActivities = logs.map((log) {
+        return RecentActivity(
+          title: log.action,
+          timeAgo: Formatters.timeAgo(log.createdAt),
+          icon: _getTypeIcon(log.type),
+          color: _getTypeColor(log.type),
+          dateTime: log.createdAt,
+        );
+      }).toList();
 
       emit(DashboardLoaded(
         totalClients: totalClients,
         totalProducts: totalProducts,
         totalQuotes: totalQuotes,
-        pendingQuotes: pendingQuotes,
+        totalTemplates: templates.length,
         monthlyRevenue: monthlyRevenue,
         monthlyPotential: monthlyPotential,
         recentActivities: recentActivities,
@@ -59,63 +75,25 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     }
   }
 
-  /// Charge les activités récentes (devis et clients) et les combine.
-  Future<List<RecentActivity>> _loadRecentActivities() async {
-    final activities = <RecentActivity>[];
-
-    // Récupérer les 5 devis les plus récents
-    final recentQuotes = await _quoteRepository.list();
-    final quotes = recentQuotes.take(5).toList();
-
-    for (final quote in quotes) {
-      String title;
-      IconData icon;
-      Color color;
-
-      switch (quote.status) {
-        case 'Accepté':
-          title = 'Devis ${quote.quoteNumber} accepté';
-          icon = Icons.check_circle_rounded;
-          color = const Color(0xFF4CAF50);
-          break;
-        case 'Envoyé':
-          title = 'Devis ${quote.quoteNumber} envoyé';
-          icon = Icons.send_rounded;
-          color = const Color(0xFF2196F3);
-          break;
-        case 'Brouillon':
-        default:
-          title = 'Devis ${quote.quoteNumber} créé';
-          icon = Icons.drafts_rounded;
-          color = AppColors.yellow;
-          break;
-      }
-
-      activities.add(RecentActivity(
-        title: title,
-        timeAgo: Formatters.timeAgo(quote.date),
-        icon: icon,
-        color: color,
-        dateTime: quote.date,
-      ));
+  IconData _getTypeIcon(String type) {
+    switch (type) {
+      case 'quote': return Icons.description_rounded;
+      case 'client': return Icons.person_rounded;
+      case 'product': return Icons.inventory_2_rounded;
+      case 'company': return Icons.store_rounded;
+      case 'auth': return Icons.lock_rounded;
+      default: return Icons.info_rounded;
     }
+  }
 
-    // Récupérer les 3 clients les plus récents
-    final recentClients = await _clientRepository.list();
-    final clients = recentClients.take(3).toList();
-
-    for (final client in clients) {
-      activities.add(RecentActivity(
-        title: 'Nouveau client ajouté: ${client.name}',
-        timeAgo: Formatters.timeAgo(client.createdAt),
-        icon: Icons.person_add_rounded,
-        color: const Color(0xFF2196F3),
-        dateTime: client.createdAt,
-      ));
+  Color _getTypeColor(String type) {
+    switch (type) {
+      case 'quote': return AppColors.yellow;
+      case 'client': return Colors.blue;
+      case 'product': return Colors.green;
+      case 'company': return Colors.purple;
+      case 'auth': return Colors.orange;
+      default: return Colors.grey;
     }
-
-    // Trier par date (plus récent en premier) et limiter à 5
-    activities.sort((a, b) => b.dateTime.compareTo(a.dateTime));
-    return activities.take(5).toList();
   }
 }

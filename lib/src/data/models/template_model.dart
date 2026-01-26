@@ -32,7 +32,7 @@ class QuoteTemplateModel extends QuoteTemplate {
   /// Convertit le modèle en map pour l'insertion dans la DB.
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
+      'id': id == 0 ? null : id,
       'name': name,
       'description': description,
       'category': category,
@@ -63,6 +63,7 @@ class TemplateItemModel extends TemplateItem {
     required super.unitPrice,
     required super.vatRate,
     required super.displayOrder,
+    super.unit,
   });
 
   /// Crée un TemplateItemModel depuis une map de base de données.
@@ -76,13 +77,14 @@ class TemplateItemModel extends TemplateItem {
       unitPrice: (map['unitPrice'] as num).toDouble(),
       vatRate: (map['vatRate'] as num).toDouble(),
       displayOrder: map['displayOrder'] as int,
+      unit: map['unit'] as String?,
     );
   }
 
   /// Convertit le modèle en map pour l'insertion dans la DB.
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
+      'id': id == 0 ? null : id,
       'templateId': templateId,
       'productName': productName,
       'description': description,
@@ -90,6 +92,7 @@ class TemplateItemModel extends TemplateItem {
       'unitPrice': unitPrice,
       'vatRate': vatRate,
       'displayOrder': displayOrder,
+      'unit': unit,
     };
   }
 

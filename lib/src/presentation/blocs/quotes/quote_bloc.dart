@@ -32,8 +32,6 @@ class QuoteBloc extends Bloc<QuoteEvent, QuoteState> {
           date: event.date,
           items: event.items,
           status: event.status,
-          isSynced: event.isSynced,
-          pendingSync: event.pendingSync,
         );
         emit(QuoteState.success(quote));
         // On rafraîchit la liste en arrière-plan
@@ -41,26 +39,6 @@ class QuoteBloc extends Bloc<QuoteEvent, QuoteState> {
         emit(QuoteState.loaded(quotes));
       } catch (e) {
         emit(QuoteState.failure(e.toString()));
-      }
-    });
-
-    on<QuoteSyncPendingRequested>((event, emit) async {
-      try {
-        final pendingQuotes = await _quoteRepository.getPendingQuotes();
-        if (pendingQuotes.isNotEmpty) {
-          // Simulation d'un délai réseau (1s)
-          await Future.delayed(const Duration(seconds: 1));
-          
-          for (final quote in pendingQuotes) {
-            // Ici, on appellerait normalement l'API backend
-            await _quoteRepository.markAsSynced(quote.id);
-          }
-          
-          // Recharger la liste mise à jour
-          add(const QuoteListRequested());
-        }
-      } catch (e) {
-        emit(QuoteState.failure('Erreur de synchronisation: $e'));
       }
     });
 
@@ -72,8 +50,16 @@ class QuoteBloc extends Bloc<QuoteEvent, QuoteState> {
         emit(QuoteState.failure(e.toString()));
       }
     });
+
+    on<QuoteDeleteRequested>((event, emit) async {
+      try {
+        await _quoteRepository.delete(event.quoteId);
+        add(const QuoteListRequested());
+      } catch (e) {
+        emit(QuoteState.failure(e.toString()));
+      }
+    });
   }
 
   final QuoteRepository _quoteRepository;
 }
-

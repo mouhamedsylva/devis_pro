@@ -4,15 +4,17 @@ import 'package:sqflite/sqflite.dart';
 import '../../domain/entities/quote.dart';
 import '../../domain/entities/quote_item.dart';
 import '../../domain/repositories/quote_repository.dart';
+import '../../domain/repositories/activity_repository.dart';
 import '../datasources/local/app_database.dart';
 import '../datasources/local/database_interface.dart';
 import '../models/quote_item_model.dart';
 import '../models/quote_model.dart';
 
 class QuoteRepositoryImpl implements QuoteRepository {
-  const QuoteRepositoryImpl(this._db);
+  const QuoteRepositoryImpl(this._db, this._activityRepo);
 
   final AppDatabase _db;
+  final ActivityRepository _activityRepo;
 
   @override
   Future<List<Quote>> list() async {
@@ -23,22 +25,6 @@ class QuoteRepositoryImpl implements QuoteRepository {
   @override
   Future<int> getQuotesCount() async {
     final count = Sqflite.firstIntValue(await _db.database.rawQuery('SELECT COUNT(*) FROM quotes'));
-    return count ?? 0;
-  }
-
-  @override
-  Future<int> getSyncedQuotesCount() async {
-    final count = Sqflite.firstIntValue(
-      await _db.database.rawQuery('SELECT COUNT(*) FROM quotes WHERE pending_sync = 0'),
-    );
-    return count ?? 0;
-  }
-
-  @override
-  Future<int> getPendingQuotesCount() async {
-    final count = Sqflite.firstIntValue(
-      await _db.database.rawQuery('SELECT COUNT(*) FROM quotes WHERE pending_sync = 1'),
-    );
     return count ?? 0;
   }
 
@@ -88,31 +74,6 @@ class QuoteRepositoryImpl implements QuoteRepository {
   }
 
   @override
-  Future<List<Quote>> getPendingQuotes() async {
-    final rows = await _db.database.query(
-      'quotes',
-      where: 'pending_sync = ?',
-      whereArgs: [1],
-      orderBy: 'date DESC',
-    );
-    return rows.map(QuoteModel.fromMap).toList();
-  }
-
-  @override
-  Future<void> markAsSynced(int quoteId) async {
-    await _db.database.update(
-      'quotes',
-      {
-        'is_synced': 1,
-        'pending_sync': 0,
-        'synced_at': DateTime.now().toIso8601String(),
-      },
-      where: 'id = ?',
-      whereArgs: [quoteId],
-    );
-  }
-
-  @override
   Future<Quote> createDraft({
     int? clientId,
     String? clientName,
@@ -120,8 +81,6 @@ class QuoteRepositoryImpl implements QuoteRepository {
     required DateTime date,
     required List<QuoteItemDraft> items,
     required String status,
-    bool isSynced = true,
-    bool pendingSync = false,
   }) async {
     final db = _db.database;
 
@@ -132,7 +91,6 @@ class QuoteRepositoryImpl implements QuoteRepository {
       double totalVAT = 0;
       double totalTTC = 0;
 
-      // Calculs.
       for (final it in items) {
         final lineHT = it.unitPrice * it.quantity;
         final lineVAT = lineHT * it.vatRate;
@@ -151,9 +109,6 @@ class QuoteRepositoryImpl implements QuoteRepository {
         'totalHT': totalHT,
         'totalVAT': totalVAT,
         'totalTTC': totalTTC,
-        'is_synced': isSynced ? 1 : 0,
-        'pending_sync': pendingSync ? 1 : 0,
-        'synced_at': isSynced ? DateTime.now().toIso8601String() : null,
       });
 
       for (final it in items) {
@@ -171,6 +126,12 @@ class QuoteRepositoryImpl implements QuoteRepository {
         });
       }
 
+      await _activityRepo.log(
+        action: 'Devis créé',
+        details: 'Devis: $quoteNumber pour ${clientName ?? "Client"}',
+        type: 'quote',
+      );
+
       final rows = await txn.query('quotes', where: 'id = ?', whereArgs: [quoteId], limit: 1);
       return QuoteModel.fromMap(rows.first);
     });
@@ -178,16 +139,39 @@ class QuoteRepositoryImpl implements QuoteRepository {
 
   @override
   Future<void> updateStatus({required int quoteId, required String status}) async {
+    final rows = await _db.database.query('quotes', where: 'id = ?', whereArgs: [quoteId], limit: 1);
     await _db.database.update(
       'quotes',
       {'status': status},
       where: 'id = ?',
       whereArgs: [quoteId],
     );
+
+    if (rows.isNotEmpty) {
+      await _activityRepo.log(
+        action: 'Statut du devis modifié',
+        details: 'Devis: ${rows.first['quoteNumber']} passé à $status',
+        type: 'quote',
+      );
+    }
+  }
+
+  @override
+  Future<void> delete(int quoteId) async {
+    final rows = await _db.database.query('quotes', where: 'id = ?', whereArgs: [quoteId], limit: 1);
+    await _db.database.delete('quotes', where: 'id = ?', whereArgs: [quoteId]);
+    // Note: quote_items are deleted by CASCADE in SQL schema
+
+    if (rows.isNotEmpty) {
+      await _activityRepo.log(
+        action: 'Devis supprimé',
+        details: 'Devis: ${rows.first['quoteNumber']}',
+        type: 'quote',
+      );
+    }
   }
 
   Future<String> _generateQuoteNumber(DatabaseInterface db) async {
-    // Format lisible: DV-YYYYMMDD-#### (auto incrément au jour)
     final now = DateTime.now();
     final y = now.year.toString().padLeft(4, '0');
     final m = now.month.toString().padLeft(2, '0');
@@ -206,5 +190,3 @@ class QuoteRepositoryImpl implements QuoteRepository {
     return '$prefix$next';
   }
 }
-
-

@@ -1,17 +1,12 @@
 /// QuoteEditorScreen – création d'un devis avec design moderne et épuré.
-///
-/// Design professionnel avec étapes visuelles, cards élégantes et calculs en temps réel.
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
-import 'package:sizer/sizer.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/formatters.dart';
-// import '../../domain/entities/client.dart'; // Commenté : gestion des clients désactivée
 import '../../domain/entities/product.dart';
 import '../../domain/entities/template.dart';
-// import '../../domain/repositories/client_repository.dart'; // Commenté : gestion des clients désactivée
 import '../../domain/repositories/product_repository.dart';
 import '../../domain/repositories/quote_repository.dart';
 import '../../domain/repositories/template_repository.dart';
@@ -19,14 +14,9 @@ import '../blocs/quotes/quote_bloc.dart';
 import '../blocs/template/template_bloc.dart';
 import '../blocs/template/template_event.dart';
 import '../blocs/template/template_state.dart';
-import '../blocs/template/template_state.dart';
 import '../widgets/quote_preview_dialog.dart';
 import '../widgets/success_dialog.dart';
 import '../../domain/repositories/company_repository.dart';
-import '../../domain/repositories/client_repository.dart';
-import '../../core/services/connectivity_service.dart';
-import '../widgets/offline_indicator.dart';
-import '../widgets/connectivity_wrapper.dart';
 import 'package:devis_pro/src/presentation/widgets/custom_connectivity_banner.dart';
 import '../widgets/confirmation_dialog.dart';
 
@@ -44,17 +34,10 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
   
   final _formKey = GlobalKey<FormState>();
 
-  // Connectivity
-  bool _isOnline = true;
-  final ConnectivityService _connectivityService = ConnectivityService();
-
   // Data
   List<Product> _products = [];
   
   // Form Data
-  int? _selectedClientId;
-  String? _clientName;
-  String? _clientPhone;
   DateTime _date = DateTime.now();
   final List<_Line> _lines = [];
 
@@ -64,30 +47,12 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
   void initState() {
     super.initState();
     _loadProducts();
-    
-    // Connectivity
-    _connectivityService.startMonitoring();
-    _connectivityService.connectionStatus.listen((isConnected) {
-      if (mounted) {
-        setState(() {
-          _isOnline = isConnected;
-        });
-      }
-    });
-    _connectivityService.checkConnection().then((isConnected) {
-      if (mounted) {
-        setState(() {
-          _isOnline = isConnected;
-        });
-      }
-    });
   }
 
   @override
   void dispose() {
     _clientNameController.dispose();
     _clientPhoneController.dispose();
-    _connectivityService.dispose();
     super.dispose();
   }
 
@@ -121,10 +86,6 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
         )
         .toList(growable: false);
 
-    // En mode offline, on marque comme en attente de sync
-    final isSynced = _isOnline;
-    final pendingSync = !_isOnline;
-
     context.read<QuoteBloc>().add(
           QuoteCreateRequested(
             clientId: null,
@@ -133,20 +94,8 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
             date: DateTime.now(),
             items: items,
             status: 'Brouillon',
-            isSynced: isSynced,
-            pendingSync: pendingSync,
           ),
         );
-        
-    if (!_isOnline) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Devis sauvegardé localement (Mode Offline)'),
-          backgroundColor: Colors.blue,
-          duration: Duration(seconds: 2),
-        ),
-      );
-    }
   }
 
 
@@ -171,30 +120,6 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
                 onPressed: () => _showHelp(context),
               ),
             ],
-            // Save Button
-            Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: FloatingActionButton.extended(
-                onPressed: _submitQuote,
-                backgroundColor: AppColors.yellow,
-                label: Row(
-                  children: [
-                      Text(
-                        _isOnline ? 'SAUVEGARDER' : 'SAUVEGARDER (OFFLINE)',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    if (!_isOnline) ...[
-                      const SizedBox(width: 8),
-                      const Icon(Icons.cloud_off, size: 16, color: Colors.blueAccent),
-                    ],
-                  ],
-                ),
-                icon: _isOnline ? const Icon(Icons.save, color: Colors.white) : null,
-              ),
-            ),
           ],
         ),
         body: Column(
@@ -729,8 +654,6 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
     );
   }
 
-  // _buildClientSelector() supprimé - remplacé par _buildClientInput()
-
   Widget _buildLinesList() {
     if (_lines.isEmpty) {
       return Container(
@@ -894,32 +817,6 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
     );
   }
 
-  Widget _buildInfoChip(String label, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.grey[300]!),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: Colors.grey[600]),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[700],
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildTotalsSummary(double totalHT, double totalVAT, double totalTTC) {
     return Container(
       decoration: BoxDecoration(
@@ -1079,6 +976,7 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
     
     // État local du dialogue
     String selectedUnit = 'Unité';
+    bool isVatEnabled = true; // TVA activée par défaut
     Product? selectedProduct;
     final nameCtrl = TextEditingController();
     final priceCtrl = TextEditingController();
@@ -1093,7 +991,7 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
     void updateTotals(StateSetter setDialogState) {
       final price = double.tryParse(priceCtrl.text.replaceAll(',', '.')) ?? 0;
       final qty = double.tryParse(qtyCtrl.text.replaceAll(',', '.')) ?? 0;
-      final vat = (double.tryParse(vatCtrl.text.replaceAll(',', '.')) ?? 0) / 100;
+      final vat = isVatEnabled ? (double.tryParse(vatCtrl.text.replaceAll(',', '.')) ?? 0) / 100 : 0.0;
       
       setDialogState(() {
         lineHT = price * qty;
@@ -1171,7 +1069,7 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Recherche / Saisie Nom
-                        const Text('NOM DE L\'ARTICLE / SERICE',
+                        const Text('NOM DE L\'ARTICLE / SERVICE',
                           style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.grey, letterSpacing: 1)),
                         const SizedBox(height: 8),
                         Autocomplete<Product>(
@@ -1187,11 +1085,11 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
                               priceCtrl.text = p.unitPrice.toString();
                               vatCtrl.text = (p.vatRate * 100).toStringAsFixed(0);
                               selectedUnit = p.unit;
+                              isVatEnabled = p.vatRate > 0;
                             });
                             updateTotals(setDialogState);
                           },
                           fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                            // On synchronise nameCtrl avec le contrôleur interne d'Autocomplete
                             if (nameCtrl.text.isNotEmpty && controller.text.isEmpty) {
                                controller.text = nameCtrl.text;
                             }
@@ -1269,6 +1167,7 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
 
                         // Prix & TVA
                         Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Expanded(
                               flex: 2,
@@ -1298,15 +1197,35 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text('TVA %', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.grey, letterSpacing: 1)),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const Text('TVA %', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.grey, letterSpacing: 1)),
+                                      SizedBox(
+                                        height: 20,
+                                        width: 30,
+                                        child: Switch(
+                                          value: isVatEnabled,
+                                          activeColor: AppColors.yellow,
+                                          onChanged: (value) {
+                                            setDialogState(() {
+                                              isVatEnabled = value;
+                                            });
+                                            updateTotals(setDialogState);
+                                          },
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                   const SizedBox(height: 8),
                                   TextField(
                                     controller: vatCtrl,
+                                    enabled: isVatEnabled,
                                     keyboardType: TextInputType.number,
                                     textAlign: TextAlign.center,
                                     decoration: InputDecoration(
                                       filled: true,
-                                      fillColor: const Color(0xFFF8F9FA),
+                                      fillColor: isVatEnabled ? const Color(0xFFF8F9FA) : Colors.grey[200],
                                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                                     ),
                                     onChanged: (_) => updateTotals(setDialogState),
@@ -1331,7 +1250,7 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
                             children: [
                               _buildCalculationRow('Total HT', lineHT),
                               const SizedBox(height: 8),
-                              _buildCalculationRow('TVA (${vatCtrl.text}%)', lineVAT),
+                              _buildCalculationRow(isVatEnabled ? 'TVA (${vatCtrl.text}%)' : 'TVA (Désactivée)', lineVAT),
                               const Divider(height: 24),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1362,7 +1281,7 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
                       Navigator.pop(sheetContext, {
                         'name': nameCtrl.text.trim(),
                         'price': double.tryParse(priceCtrl.text.replaceAll(',', '.')) ?? 0,
-                        'vat': (double.tryParse(vatCtrl.text.replaceAll(',', '.')) ?? 18) / 100,
+                        'vat': isVatEnabled ? ((double.tryParse(vatCtrl.text.replaceAll(',', '.')) ?? 18) / 100) : 0.0,
                         'unit': selectedUnit,
                         'quantity': double.tryParse(qtyCtrl.text.replaceAll(',', '.')) ?? 1,
                       });
@@ -1395,7 +1314,6 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
       final isExisting = _products.any((p) => p.name.toLowerCase() == name.toLowerCase());
       if (!isExisting) {
         final productRepo = context.read<ProductRepository>();
-        // On ne bloque pas l'UI, on fait ça en tâche de fond
         productRepo.create(name: name, unitPrice: price, vatRate: vat, unit: unit).then((_) => _loadProducts());
       }
 

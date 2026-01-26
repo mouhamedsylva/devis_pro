@@ -1,12 +1,4 @@
 /// DashboardScreen – Accès rapide avec statistiques et BottomNavigationBar.
-///
-/// Design Features:
-/// - Fond gris-blanc professionnel
-/// - Statistiques en temps réel
-/// - BottomNavigationBar pour navigation principale
-/// - Palette jaune/gris/blanc
-/// - Actions rapides accessibles
-
 import 'package:devis_pro/src/presentation/blocs/dashboard/dashboard_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -16,13 +8,13 @@ import '../blocs/clients/client_bloc.dart';
 import '../blocs/products/product_bloc.dart';
 import '../blocs/quotes/quote_bloc.dart';
 import '../../core/constants/app_colors.dart';
-import 'package:devis_pro/src/presentation/widgets/custom_connectivity_banner.dart';
 import '../../core/services/connectivity_service.dart';
 import 'quote_editor_screen.dart';
 import 'clients_screen.dart';
 import 'company_screen.dart';
 import 'products_screen.dart';
 import 'quotes_screen.dart';
+import 'history_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -33,37 +25,23 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   int _selectedIndex = 0;
-  bool _isOnline = true; // État de connexion internet
+  bool _isOnline = true;
   final ConnectivityService _connectivityService = ConnectivityService();
 
   @override
   void initState() {
     super.initState();
     context.read<DashboardBloc>().add(LoadDashboardData());
-    
-    // Démarrer le monitoring de la connexion
+
     _connectivityService.startMonitoring();
     _connectivityService.connectionStatus.listen((isConnected) {
       if (mounted) {
-        // Auto-synchronisation si connexion rétablie
-        if (isConnected && !_isOnline) {
-          context.read<QuoteBloc>().add(const QuoteSyncPendingRequested());
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Synchronisation en cours ...'),
-              backgroundColor: Colors.blue,
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-
         setState(() {
           _isOnline = isConnected;
         });
       }
     });
-    
-    // Vérifier l'état initial
+
     _connectivityService.checkConnection().then((isConnected) {
       if (mounted) {
         setState(() {
@@ -85,7 +63,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
-  // Méthode pour obtenir l'écran actif
   Widget _getCurrentScreen() {
     switch (_selectedIndex) {
       case 0:
@@ -120,12 +97,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           listener: (context, state) => context.read<DashboardBloc>().add(LoadDashboardData()),
         ),
       ],
-      child: CustomConnectivityBanner(
-        child: Scaffold(
-          backgroundColor: const Color(0xFFF5F5F5),
-          body: _getCurrentScreen(),
-          bottomNavigationBar: _buildBottomNavigationBar(),
-        ),
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF5F5F5),
+        body: _getCurrentScreen(),
+        bottomNavigationBar: _buildBottomNavigationBar(),
       ),
     );
   }
@@ -134,10 +109,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return BlocBuilder<DashboardBloc, DashboardState>(
       builder: (context, state) {
         int? totalClients;
-        int? pendingQuotes;
         if (state is DashboardLoaded) {
           totalClients = state.totalClients;
-          pendingQuotes = state.pendingQuotes;
         }
         return Container(
           decoration: BoxDecoration(
@@ -156,49 +129,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  Expanded(
-                    child: _buildNavItem(
-                      icon: Icons.home_rounded,
-                      label: 'Accueil',
-                      index: 0,
-                      isEnabled: true,
-                    ),
-                  ),
-                  Expanded(
-                    child: _buildNavItem(
-                      icon: Icons.receipt_long_rounded,
-                      label: 'Devis',
-                      index: 1,
-                      badge: pendingQuotes,
-                      showBadge: pendingQuotes != null && pendingQuotes > 0,
-                      isEnabled: true,
-                    ),
-                  ),
-                  Expanded(
-                    child: _buildNavItem(
-                      icon: Icons.people_rounded,
-                      label: 'Clients',
-                      index: 2,
-                      badge: totalClients,
-                      isEnabled: _isOnline,
-                    ),
-                  ),
-                  Expanded(
-                    child: _buildNavItem(
-                      icon: Icons.inventory_2_rounded,
-                      label: 'Produits',
-                      index: 3,
-                      isEnabled: _isOnline,
-                    ),
-                  ),
-                  Expanded(
-                    child: _buildNavItem(
-                      icon: Icons.store_rounded,
-                      label: 'Entreprise',
-                      index: 4,
-                      isEnabled: _isOnline,
-                    ),
-                  ),
+                  Expanded(child: _buildNavItem(icon: Icons.home_rounded, label: 'Accueil', index: 0)),
+                  Expanded(child: _buildNavItem(icon: Icons.receipt_long_rounded, label: 'Devis', index: 1)),
+                  Expanded(child: _buildNavItem(icon: Icons.people_rounded, label: 'Clients', index: 2, badge: totalClients)),
+                  Expanded(child: _buildNavItem(icon: Icons.inventory_2_rounded, label: 'Produits', index: 3)),
+                  Expanded(child: _buildNavItem(icon: Icons.store_rounded, label: 'Entreprise', index: 4)),
                 ],
               ),
             ),
@@ -214,46 +149,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required int index,
     int? badge,
     bool showBadge = false,
-    bool isEnabled = true,
   }) {
     final isSelected = _selectedIndex == index;
-    final color = isEnabled 
-        ? (isSelected ? AppColors.yellow : const Color(0xFF999999))
-        : Colors.grey.withOpacity(0.3);
+    final color = isSelected ? AppColors.yellow : const Color(0xFF999999);
 
     return GestureDetector(
-      onTap: isEnabled ? () => _onItemTapped(index) : null,
+      onTap: () => _onItemTapped(index),
       behavior: HitTestBehavior.opaque,
       child: TweenAnimationBuilder<double>(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOutCubic,
-        tween: Tween<double>(
-          begin: 0,
-          end: isSelected ? 1 : 0,
-        ),
+        tween: Tween<double>(begin: 0, end: isSelected ? 1 : 0),
         builder: (context, value, child) {
           return AnimatedContainer(
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeOutCubic,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 4,
-              vertical: 8,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
             decoration: BoxDecoration(
-              color: Color.lerp(
-                Colors.transparent,
-                isEnabled ? AppColors.yellow.withOpacity(0.15) : Colors.transparent,
-                value,
-              ),
+              color: Color.lerp(Colors.transparent, AppColors.yellow.withOpacity(0.15), value),
               borderRadius: BorderRadius.circular(12),
               boxShadow: isSelected
-                  ? [
-                      BoxShadow(
-                        color: AppColors.yellow.withOpacity(0.3 * value),
-                        blurRadius: 8 * value,
-                        offset: Offset(0, 2 * value),
-                      ),
-                    ]
+                  ? [BoxShadow(color: AppColors.yellow.withOpacity(0.3 * value), blurRadius: 8 * value, offset: Offset(0, 2 * value))]
                   : null,
             ),
             child: Column(
@@ -262,71 +178,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Stack(
                   clipBehavior: Clip.none,
                   children: [
-                    // Animation de l'icône avec scale et rotation
                     Transform.scale(
-                      scale: 1.0 + (value * 0.15), // Scale de 1.0 à 1.15
+                      scale: 1.0 + (value * 0.15),
                       child: Transform.rotate(
-                        angle: value * 0.1, // Légère rotation
+                        angle: value * 0.1,
                         child: Icon(
                           icon,
-                          color: isEnabled 
-                              ? Color.lerp(
-                                  const Color(0xFF999999),
-                                  AppColors.yellow,
-                                  value,
-                                )
-                              : color,
+                          color: Color.lerp(const Color(0xFF999999), AppColors.yellow, value),
                           size: 26,
                         ),
                       ),
                     ),
-                    // Badge animé
                     if (showBadge && badge != null)
                       Positioned(
                         right: -8,
                         top: -8,
-                        child: TweenAnimationBuilder<double>(
-                          duration: const Duration(milliseconds: 400),
-                          curve: Curves.elasticOut,
-                          tween: Tween<double>(begin: 0, end: 1),
-                          builder: (context, badgeValue, child) {
-                            return Transform.scale(
-                              scale: badgeValue,
-                              child: Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFFF5252),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: Colors.white, width: 2),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFFFF5252).withOpacity(0.4),
-                                      blurRadius: 6,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                constraints: const BoxConstraints(
-                                  minWidth: 18,
-                                  minHeight: 18,
-                                ),
-                                child: Text(
-                                  badge > 9 ? '9+' : badge.toString(),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                            );
-                          },
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(color: const Color(0xFFFF5252), shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)),
+                          constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                          child: Text(badge > 9 ? '9+' : badge.toString(), style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900), textAlign: TextAlign.center),
                         ),
                       ),
                   ],
                 ),
-                // Animation du texte avec fade et slide
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 300),
                   height: isSelected ? 16 : 14,
@@ -335,23 +210,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     duration: const Duration(milliseconds: 300),
                     curve: Curves.easeOutCubic,
                     style: TextStyle(
-                      color: isEnabled 
-                          ? Color.lerp(
-                              const Color(0xFF999999),
-                              AppColors.yellow,
-                              value,
-                            )
-                          : color,
+                      color: Color.lerp(const Color(0xFF999999), AppColors.yellow, value),
                       fontSize: 11,
                       fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                       letterSpacing: value * 0.5,
                     ),
-                    child: Text(
-                      label,
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    child: Text(label, textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
                   ),
                 ),
               ],
@@ -361,10 +225,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
     );
   }
-
-  // =========================================================================
-  // ÉCRAN D'ACCUEIL (Home)
-  // =========================================================================
 
   Widget _buildHomeScreen() {
     return BlocBuilder<DashboardBloc, DashboardState>(
@@ -378,29 +238,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
         if (state is DashboardLoaded) {
           return CustomScrollView(
             slivers: [
-              // App Bar personnalisée
               _buildSliverAppBar(),
-
-              // Contenu principal
               SliverToBoxAdapter(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 24),
-
-                    // Statistiques rapides
                     _buildQuickStats(state),
-
                     const SizedBox(height: 24),
-
-                    // Actions rapides
                     _buildQuickActions(context),
-
                     const SizedBox(height: 32),
-
-                    // Section activité récente
                     _buildRecentActivity(state),
-
                     const SizedBox(height: 32),
                   ],
                 ),
@@ -422,98 +270,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
       elevation: 0,
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
+          decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 2))]),
           child: SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.end,
+              child: Row(
                 children: [
-                  Row(
-                    children: [
-                      // Logo
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: LinearGradient(
-                            colors: [
-                              AppColors.yellow,
-                              const Color(0xFFFFD700),
-                            ],
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.yellow.withOpacity(0.3),
-                              blurRadius: 12,
-                              spreadRadius: 2,
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.description,
-                          color: Colors.white,
-                          size: 24,
-                        ),
-                      ),
-                      
-                      const SizedBox(width: 12),
-                      
-                      // Titre
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'DEVIS PRO',
-                              style: TextStyle(
-                                color: AppColors.yellow,
-                                fontSize: 22,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 2,
-                              ),
-                            ),
-                            const Text(
-                              'Tableau de bord',
-                              style: TextStyle(
-                                color: Color(0xFF666666),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      
-                      // Bouton déconnexion
-                      Container(
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF5F5F5),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: IconButton(
-                          tooltip: 'Déconnexion',
-                          onPressed: () => _confirmLogout(context),
-                          icon: const Icon(
-                            Icons.logout_rounded,
-                            color: Color(0xFF666666),
-                            size: 22,
-                          ),
-                        ),
-                      ),
-                    ],
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(colors: [AppColors.yellow, const Color(0xFFFFD700)]),
+                      boxShadow: [BoxShadow(color: AppColors.yellow.withOpacity(0.3), blurRadius: 12, spreadRadius: 2)],
+                    ),
+                    child: const Icon(Icons.description, color: Colors.white, size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('DEVIS PRO', style: TextStyle(color: AppColors.yellow, fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 2)),
+                        const Text('Tableau de bord', style: TextStyle(color: Color(0xFF666666), fontSize: 13, fontWeight: FontWeight.w500, letterSpacing: 0.5)),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    decoration: BoxDecoration(color: const Color(0xFFF5F5F5), borderRadius: BorderRadius.circular(12)),
+                    child: IconButton(onPressed: () => _confirmLogout(context), icon: const Icon(Icons.logout_rounded, color: Color(0xFF666666), size: 22)),
                   ),
                 ],
               ),
@@ -530,207 +316,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Vue d\'ensemble',
-            style: TextStyle(
-              color: Color(0xFF1A1A1A),
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.5,
-            ),
-          ),
-          
+          const Text('Vue d\'ensemble', style: TextStyle(color: Color(0xFF1A1A1A), fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
           const SizedBox(height: 16),
-          
-          // Carte de revenu mensuel (mise en avant) - COMMENTÉE
-          /* Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  AppColors.yellow,
-                  const Color(0xFFFFD700),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.yellow.withOpacity(0.3),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.trending_up_rounded,
-                        color: Colors.white,
-                        size: 24,
-                      ),
-                    ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Text(
-                        'Ce mois',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                
-                const SizedBox(height: 16),
-                
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${_formatCurrency(state.monthlyRevenue)}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 28,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                          const Text(
-                            'Gagné (Acceptés)',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      width: 1,
-                      height: 40,
-                      color: Colors.white24,
-                      margin: const EdgeInsets.symmetric(horizontal: 16),
-                    ),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${_formatCurrency(state.monthlyPotential)}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 28,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                          const Text(
-                            'En cours (Envoyés)',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                
-                const SizedBox(height: 8),
-                
-                const Text(
-                  'Volume d\'affaires mensuel (FCFA)',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          const SizedBox(height: 16), */
-          
-          // Statistiques en grille
           Row(
             children: [
-              Expanded(
-                child: _buildStatCard(
-                  icon: Icons.people_rounded,
-                  value: state.totalClients.toString(),
-                  label: 'Clients',
-                  color: _isOnline ? AppColors.yellow : Colors.white,
-                  useGradient: _isOnline,
-                ),
-              ),
+              Expanded(child: _buildStatCard(icon: Icons.people_rounded, value: state.totalClients.toString(), label: 'Clients', useGradient: _isOnline)),
               const SizedBox(width: 12),
-              Expanded(
-                child: _buildStatCard(
-                  icon: Icons.inventory_2_rounded,
-                  value: state.totalProducts.toString(),
-                  label: 'Produits',
-                  color: _isOnline ? AppColors.yellow : Colors.white,
-                  useGradient: _isOnline,
-                ),
-              ),
+              Expanded(child: _buildStatCard(icon: Icons.inventory_2_rounded, value: state.totalProducts.toString(), label: 'Produits', useGradient: _isOnline)),
             ],
           ),
-          
           const SizedBox(height: 12),
-          
           Row(
             children: [
-              Expanded(
-                child: _buildStatCard(
-                  icon: Icons.receipt_long_rounded,
-                  value: state.totalQuotes.toString(),
-                  label: 'Devis total',
-                  color: _isOnline ? AppColors.yellow : Colors.white,
-                  useGradient: _isOnline,
-                ),
-              ),
+              Expanded(child: _buildStatCard(icon: Icons.receipt_long_rounded, value: state.totalQuotes.toString(), label: 'Devis total', useGradient: _isOnline)),
               const SizedBox(width: 12),
               Expanded(
                 child: _buildStatCard(
-                  icon: Icons.pending_actions_rounded,
-                  value: state.pendingQuotes.toString(),
-                  label: 'En attente',
-                  color: _isOnline ? const Color(0xFF9E9E9E) : Colors.white, // Icon/Badge color
-                  backgroundColor: _isOnline ? Colors.white : Colors.blue, // NEW: Full Card Blue if Offline
-                  contentColor: _isOnline ? null : Colors.white, // NEW: White text if Offline
+                  icon: Icons.note_add_rounded,
+                  value: state.totalTemplates.toString(),
+                  label: 'Modèles',
+                  useGradient: !_isOnline,
+                  backgroundColor: !_isOnline ? Colors.blue : Colors.white,
                   showBadge: !_isOnline,
-                  badgeText: 'OFFLINE',
+                  badgeText: 'LOCAL',
                 ),
               ),
             ],
@@ -744,15 +352,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required IconData icon,
     required String value,
     required String label,
-    required Color color,
     bool showBadge = false,
     bool useGradient = false,
     Color? backgroundColor,
-    Color? contentColor,
     String? badgeText,
   }) {
-    final effectiveContentColor = contentColor ?? (useGradient ? Colors.white : const Color(0xFF1A1A1A));
-    final effectiveSubColor = contentColor?.withOpacity(0.7) ?? (useGradient ? Colors.white70 : const Color(0xFF666666));
+    final effectiveContentColor = useGradient ? Colors.white : const Color(0xFF1A1A1A);
+    final effectiveSubColor = useGradient ? Colors.white70 : const Color(0xFF666666);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -761,23 +367,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ? LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  AppColors.yellow,
-                  const Color(0xFFFFD700),
-                ],
+                colors: backgroundColor == Colors.blue
+                    ? [Colors.blue, Colors.blueAccent]
+                    : [AppColors.yellow, const Color(0xFFFFD700)],
               )
             : null,
         color: useGradient ? null : (backgroundColor ?? Colors.white),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: (useGradient || backgroundColor != null)
-                ? (backgroundColor ?? AppColors.yellow).withOpacity(0.3)
-                : Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -786,61 +383,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               Container(
                 padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: useGradient
-                      ? Colors.white.withOpacity(0.2)
-                      : (backgroundColor != null ? Colors.white.withOpacity(0.2) : color.withOpacity(0.1)),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  icon,
-                  color: useGradient || backgroundColor != null ? Colors.white : color,
-                  size: 22,
-                ),
+                decoration: BoxDecoration(color: useGradient ? Colors.white.withOpacity(0.2) : AppColors.yellow.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                child: Icon(icon, color: useGradient ? Colors.white : AppColors.yellow, size: 22),
               ),
               if (showBadge) ...[
                 const Spacer(),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: useGradient || backgroundColor != null ? Colors.white : color,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    badgeText ?? '',
-                    style: TextStyle(
-                      color: useGradient || backgroundColor != null ? (backgroundColor ?? AppColors.yellow) : Colors.white,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
+                  child: Text(badgeText ?? '', style: TextStyle(color: backgroundColor ?? AppColors.yellow, fontSize: 9, fontWeight: FontWeight.w900)),
                 ),
               ],
             ],
           ),
-          
           const SizedBox(height: 12),
-          
-          Text(
-            value,
-            style: TextStyle(
-              color: effectiveContentColor,
-              fontSize: 26,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          
+          Text(value, style: TextStyle(color: effectiveContentColor, fontSize: 26, fontWeight: FontWeight.w900)),
           const SizedBox(height: 2),
-          
-          Text(
-            label,
-            style: TextStyle(
-              color: effectiveSubColor,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          Text(label, style: TextStyle(color: effectiveSubColor, fontSize: 12, fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -852,18 +411,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Actions rapides',
-            style: TextStyle(
-              color: Color(0xFF1A1A1A),
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.5,
-            ),
-          ),
-          
+          const Text('Actions rapides', style: TextStyle(color: Color(0xFF1A1A1A), fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
           const SizedBox(height: 16),
-          
           Row(
             children: [
               Expanded(
@@ -872,29 +421,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   label: 'Nouveau devis',
                   color: AppColors.yellow,
                   onTap: () {
-                    // Aller à l'écran de création de devis directement
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const QuoteEditorScreen(),
-                      ),
-                    ).then((_) {
-                      if (context.mounted) {
-                        context.read<DashboardBloc>().add(LoadDashboardData());
-                      }
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => const QuoteEditorScreen())).then((_) {
+                      if (context.mounted) context.read<DashboardBloc>().add(LoadDashboardData());
                     });
                   },
                 ),
               ),
               const SizedBox(width: 12),
-              Expanded(
-                child: _buildQuickActionButton(
-                  icon: Icons.person_add_rounded,
-                  label: 'Ajouter client',
-                  color: const Color(0xFF4CAF50),
-                  onTap: () => _onItemTapped(2), // Aller à l'onglet Clients
-                ),
-              ),
+              Expanded(child: _buildQuickActionButton(icon: Icons.person_add_rounded, label: 'Ajouter client', color: const Color(0xFF4CAF50), onTap: () => _onItemTapped(2))),
             ],
           ),
         ],
@@ -902,12 +436,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildQuickActionButton({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
+  Widget _buildQuickActionButton({required IconData icon, required String label, required Color color, required VoidCallback onTap}) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -918,142 +447,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: color.withOpacity(0.3),
-              width: 2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: color.withOpacity(0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            border: Border.all(color: color.withOpacity(0.3), width: 2),
+            boxShadow: [BoxShadow(color: color.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 4))],
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: color, size: 22),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildQuickNavigation(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Raccourcis',
-            style: TextStyle(
-              color: Color(0xFF1A1A1A),
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.5,
-            ),
-          ),
-          
-          const SizedBox(height: 16),
-          
-          Row(
-            children: [
-              // Raccourci Produits commenté - les produits peuvent être créés directement dans l'éditeur de devis
-              Expanded(
-                child: _buildQuickNavCard(
-                  icon: Icons.inventory_2_rounded,
-                  label: 'Produits',
-                  color: const Color(0xFF2196F3),
-                  onTap: () => _onItemTapped(3), // Aller à l'onglet Produits
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildQuickNavCard(
-                  icon: Icons.store_rounded,
-                  label: 'Mon Entreprise',
-                  color: const Color(0xFF757575),
-                  onTap: () => _onItemTapped(4), // Aller à l'onglet Entreprise
-                ),
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: 12),
-          
-          Row(
-            children: [
-              const Expanded(child: SizedBox()), // (Modèles déplacé vers l'écran Devis)
-              const SizedBox(width: 12),
-              const Expanded(child: SizedBox()),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickNavCard({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  icon,
-                  color: color,
-                  size: 28,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Color(0xFF1A1A1A),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
+          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(icon, color: color, size: 22), const SizedBox(width: 8), Text(label, style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.w700))]),
         ),
       ),
     );
@@ -1068,289 +465,73 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Activité récente',
-                style: TextStyle(
-                  color: Color(0xFF1A1A1A),
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.5,
-                ),
-              ),
+              const Text('Activité récente', style: TextStyle(color: Color(0xFF1A1A1A), fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
               TextButton(
-                onPressed: () => _onItemTapped(2), // Aller à l'onglet Devis
-                child: Text(
-                  'Voir tout',
-                  style: TextStyle(
-                    color: AppColors.yellow,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const HistoryScreen()),
+                  ).then((_) {
+                    if (context.mounted) context.read<DashboardBloc>().add(LoadDashboardData());
+                  });
+                },
+                child: Text('Voir tout', style: TextStyle(color: AppColors.yellow, fontSize: 13, fontWeight: FontWeight.w700)),
               ),
             ],
           ),
-          
           const SizedBox(height: 12),
-          
-          // Afficher les activités récentes dynamiques
           if (state.recentActivities.isEmpty)
             Container(
               padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Center(
-                child: Text(
-                  'Aucune activité récente',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 14,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))]),
+              child: Center(child: Text('Aucune activité récente', style: TextStyle(color: Colors.grey[600], fontSize: 14, fontStyle: FontStyle.italic))),
             )
           else
             ...state.recentActivities.asMap().entries.map((entry) {
               final index = entry.key;
               final activity = entry.value;
-              return Padding(
-                padding: EdgeInsets.only(bottom: index < state.recentActivities.length - 1 ? 10 : 0),
-                child: _buildActivityItem(
-                  icon: activity.icon,
-                  title: activity.title,
-                  time: activity.timeAgo,
-                  color: activity.color,
-                ),
-              );
+              return Padding(padding: EdgeInsets.only(bottom: index < state.recentActivities.length - 1 ? 10 : 0), child: _buildActivityItem(icon: activity.icon, title: activity.title, time: activity.timeAgo, color: activity.color));
             }).toList(),
         ],
       ),
     );
   }
 
-  Widget _buildActivityItem({
-    required IconData icon,
-    required String title,
-    required String time,
-    required Color color,
-  }) {
+  Widget _buildActivityItem({required IconData icon, required String title, required String time, required Color color}) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))]),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              icon,
-              color: color,
-              size: 20,
-            ),
-          ),
-          
+          Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12)), child: Icon(icon, color: color, size: 20)),
           const SizedBox(width: 12),
-          
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: Color(0xFF1A1A1A),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  time,
-                  style: const TextStyle(
-                    color: Color(0xFF999999),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(color: Color(0xFF1A1A1A), fontSize: 14, fontWeight: FontWeight.w600)), const SizedBox(height: 3), Text(time, style: const TextStyle(color: Color(0xFF999999), fontSize: 12, fontWeight: FontWeight.w500))])),
         ],
       ),
     );
   }
 
-  Widget _buildFloatingActionButton(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          colors: [
-            AppColors.yellow,
-            const Color(0xFFFFD700),
-          ],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.yellow.withOpacity(0.4),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: FloatingActionButton.extended(
-        onPressed: () => _onItemTapped(1), // Aller à l'onglet Devis
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        icon: const Icon(
-          Icons.add_rounded,
-          color: Colors.white,
-        ),
-        label: const Text(
-          'Nouveau devis',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.5,
-          ),
-        ),
-      ),
-    );
-  }
-
-  String _formatCurrency(double amount) {
-    if (amount >= 1000000) {
-      return '${(amount / 1000000).toStringAsFixed(1)}M';
-    } else if (amount >= 1000) {
-      return '${(amount / 1000).toStringAsFixed(0)}K';
-    }
-    return amount.toStringAsFixed(0);
-  }
-
-  /// Affiche un dialogue de confirmation avant la déconnexion.
   Future<void> _confirmLogout(BuildContext context) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      barrierDismissible: true,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         contentPadding: const EdgeInsets.all(24),
-        title: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.15),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.logout_rounded,
-                color: Colors.orange,
-                size: 32,
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Déconnexion',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-          ],
-        ),
-        content: const Text(
-          'Êtes-vous sûr de vouloir vous déconnecter de votre compte ?',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 15,
-            height: 1.5,
-            color: Colors.black54,
-          ),
-        ),
-        actionsAlignment: MainAxisAlignment.center,
-        actionsPadding: const EdgeInsets.only(bottom: 16, left: 16, right: 16),
+        title: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: Colors.orange.withOpacity(0.15), shape: BoxShape.circle), child: const Icon(Icons.logout_rounded, color: Colors.orange, size: 32)),
+          const SizedBox(height: 16),
+          const Text('Déconnexion', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87)),
+        ]),
+        content: const Text('Êtes-vous sûr de vouloir vous déconnecter de votre compte ?', textAlign: TextAlign.center, style: TextStyle(fontSize: 15, height: 1.5, color: Colors.black54)),
         actions: [
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    side: const BorderSide(color: Colors.grey, width: 1.5),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    'Annuler',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    'Se déconnecter',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+          Row(children: [
+            Expanded(child: OutlinedButton(onPressed: () => Navigator.pop(context, false), style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: const Text('Annuler', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87)))),
+            const SizedBox(width: 12),
+            Expanded(child: ElevatedButton(onPressed: () => Navigator.pop(context, true), style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: const Text('Se déconnecter', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)))),
+          ]),
         ],
       ),
     );
-
-    if (confirmed == true && context.mounted) {
-      context.read<AuthBloc>().add(const AuthLogoutRequested());
-    }
+    if (confirmed == true && context.mounted) context.read<AuthBloc>().add(const AuthLogoutRequested());
   }
 }

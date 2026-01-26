@@ -1,21 +1,25 @@
-/// Impl SQLite du ClientRepository.
 import 'package:sqflite/sqflite.dart';
-
-import '../../core/utils/formatters.dart';
 import '../../domain/entities/client.dart';
 import '../../domain/repositories/client_repository.dart';
+import '../../domain/repositories/activity_repository.dart';
 import '../datasources/local/app_database.dart';
-import '../models/client_model.dart';
 
 class ClientRepositoryImpl implements ClientRepository {
-  const ClientRepositoryImpl(this._db);
+  ClientRepositoryImpl(this._db, this._activityRepo);
 
   final AppDatabase _db;
+  final ActivityRepository _activityRepo;
 
   @override
   Future<List<Client>> list() async {
-    final rows = await _db.database.query('clients', orderBy: 'id DESC');
-    return rows.map(ClientModel.fromMap).toList();
+    final rows = await _db.database.query('clients', orderBy: 'name ASC');
+    return rows.map((row) => Client(
+      id: row['id'] as int,
+      name: row['name'] as String,
+      phone: row['phone'] as String,
+      address: row['address'] as String,
+      createdAt: DateTime.parse(row['createdAt'] as String),
+    )).toList();
   }
 
   @override
@@ -25,42 +29,81 @@ class ClientRepositoryImpl implements ClientRepository {
   }
 
   @override
-  Future<bool> clientHasQuotes(int clientId) async {
-    final count = Sqflite.firstIntValue(
-      await _db.database.rawQuery('SELECT COUNT(*) FROM quotes WHERE clientId = ?', [clientId]),
+  Future<Client> create({required String name, required String phone, required String address}) async {
+    final id = await _db.database.insert('clients', {
+      'name': name,
+      'phone': phone,
+      'address': address,
+      'createdAt': DateTime.now().toIso8601String(),
+    });
+
+    await _activityRepo.log(
+      action: 'Nouveau client ajouté',
+      details: 'Client: $name',
+      type: 'client',
     );
-    return (count ?? 0) > 0;
+
+    return Client(
+      id: id,
+      name: name,
+      phone: phone,
+      address: address,
+      createdAt: DateTime.now(),
+    );
+  }
+
+  @override
+  Future<void> update(Client client) async {
+    await _db.database.update(
+      'clients',
+      {
+        'name': client.name,
+        'phone': client.phone,
+        'address': client.address,
+      },
+      where: 'id = ?',
+      whereArgs: [client.id],
+    );
+
+    await _activityRepo.log(
+      action: 'Client modifié',
+      details: 'Client: ${client.name}',
+      type: 'client',
+    );
+  }
+
+  @override
+  Future<void> delete(int id) async {
+    final client = await findById(id);
+    await _db.database.delete('clients', where: 'id = ?', whereArgs: [id]);
+
+    if (client != null) {
+      await _activityRepo.log(
+        action: 'Client supprimé',
+        details: 'Client: ${client.name}',
+        type: 'client',
+      );
+    }
   }
 
   @override
   Future<Client?> findById(int id) async {
     final rows = await _db.database.query('clients', where: 'id = ?', whereArgs: [id], limit: 1);
     if (rows.isEmpty) return null;
-    return ClientModel.fromMap(rows.first);
-  }
-
-  @override
-  Future<Client> create({required String name, required String phone, required String address}) async {
-    final normalizedPhone = Formatters.normalizePhoneNumber(phone);
-    final id = await _db.database.insert(
-      'clients',
-      ClientModel.toInsert(name: name, phone: normalizedPhone, address: address),
+    final row = rows.first;
+    return Client(
+      id: row['id'] as int,
+      name: row['name'] as String,
+      phone: row['phone'] as String,
+      address: row['address'] as String,
+      createdAt: DateTime.parse(row['createdAt'] as String),
     );
-    final rows = await _db.database.query('clients', where: 'id = ?', whereArgs: [id], limit: 1);
-    return ClientModel.fromMap(rows.first);
   }
 
   @override
-  Future<void> update(Client client) async {
-    final normalizedPhone = Formatters.normalizePhoneNumber(client.phone);
-    final clientToUpdate = client.copyWith(phone: normalizedPhone);
-    await _db.database.update('clients', ClientModel.toMap(clientToUpdate), where: 'id = ?', whereArgs: [client.id]);
-  }
-
-  @override
-  Future<void> delete(int id) async {
-    await _db.database.delete('clients', where: 'id = ?', whereArgs: [id]);
+  Future<bool> clientHasQuotes(int clientId) async {
+    final result = await _db.database.rawQuery('SELECT COUNT(*) FROM quotes WHERE clientId = ?', [clientId]);
+    final count = Sqflite.firstIntValue(result);
+    return (count ?? 0) > 0;
   }
 }
-
-

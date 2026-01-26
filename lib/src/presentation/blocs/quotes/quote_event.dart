@@ -11,7 +11,7 @@ class QuoteListRequested extends QuoteEvent {
   const QuoteListRequested();
 }
 
-  class QuoteCreateRequested extends QuoteEvent {
+class QuoteCreateRequested extends QuoteEvent {
   const QuoteCreateRequested({
     this.clientId,
     this.clientName,
@@ -19,8 +19,6 @@ class QuoteListRequested extends QuoteEvent {
     required this.date,
     required this.items,
     required this.status,
-    this.isSynced = true,
-    this.pendingSync = false,
   });
 
   final int? clientId;
@@ -29,15 +27,9 @@ class QuoteListRequested extends QuoteEvent {
   final DateTime date;
   final List<QuoteItemDraft> items;
   final String status;
-  final bool isSynced;
-  final bool pendingSync;
 
   @override
-  List<Object?> get props => [clientId, clientName, clientPhone, date, items, status, isSynced, pendingSync];
-}
-
-class QuoteSyncPendingRequested extends QuoteEvent {
-  const QuoteSyncPendingRequested();
+  List<Object?> get props => [clientId, clientName, clientPhone, date, items, status];
 }
 
 class QuoteStatusUpdated extends QuoteEvent {
@@ -50,3 +42,10 @@ class QuoteStatusUpdated extends QuoteEvent {
   List<Object?> get props => [quoteId, status];
 }
 
+class QuoteDeleteRequested extends QuoteEvent {
+  const QuoteDeleteRequested(this.quoteId);
+  final int quoteId;
+
+  @override
+  List<Object?> get props => [quoteId];
+}

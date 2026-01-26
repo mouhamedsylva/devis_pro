@@ -32,7 +32,7 @@ class DashboardLoaded extends DashboardState {
   final int totalClients;
   final int totalProducts;
   final int totalQuotes;
-  final int pendingQuotes;
+  final int totalTemplates; // Remplacé pendingQuotes par totalTemplates
   final double monthlyRevenue;
   final double monthlyPotential;
   final List<RecentActivity> recentActivities;
@@ -41,7 +41,7 @@ class DashboardLoaded extends DashboardState {
     required this.totalClients,
     required this.totalProducts,
     required this.totalQuotes,
-    required this.pendingQuotes,
+    required this.totalTemplates,
     required this.monthlyRevenue,
     required this.monthlyPotential,
     required this.recentActivities,
@@ -52,7 +52,7 @@ class DashboardLoaded extends DashboardState {
         totalClients,
         totalProducts,
         totalQuotes,
-        pendingQuotes,
+        totalTemplates,
         monthlyRevenue,
         monthlyPotential,
         recentActivities,

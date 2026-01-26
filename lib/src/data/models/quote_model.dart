@@ -14,9 +14,6 @@ class QuoteModel {
       totalHT: (map['totalHT'] as num).toDouble(),
       totalVAT: (map['totalVAT'] as num).toDouble(),
       totalTTC: (map['totalTTC'] as num).toDouble(),
-      isSynced: (map['is_synced'] as int?) == 1, // Default false/null handled by int? check, but here schema default is 1
-      syncedAt: map['synced_at'] != null ? DateTime.parse(map['synced_at'] as String) : null,
-      pendingSync: (map['pending_sync'] as int?) == 1,
     );
   }
 
@@ -32,10 +29,6 @@ class QuoteModel {
       'totalHT': quote.totalHT,
       'totalVAT': quote.totalVAT,
       'totalTTC': quote.totalTTC,
-      'is_synced': quote.isSynced ? 1 : 0,
-      'synced_at': quote.syncedAt?.toIso8601String(),
-      'pending_sync': quote.pendingSync ? 1 : 0,
     };
   }
 }
-
