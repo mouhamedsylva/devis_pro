@@ -14,7 +14,7 @@ class DatabaseMobile implements DatabaseInterface {
   Database? _database;
 
   static const _dbName = 'devispro.db';
-  static const _dbVersion = 8; // ✨ Version 8 : ajout champs offline sync
+  static const _dbVersion = 99; // ✨ Version de dépannage pour forcer la migration
 
   factory DatabaseMobile() {
     _instance ??= DatabaseMobile._();
@@ -190,15 +190,31 @@ CREATE INDEX idx_template_items_templateId ON template_items(templateId);
 
   /// Migration de la base de données
   Future<void> _upgradeSchema(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
-      // Migration de v1 à v2 : ajout des nouveaux champs users + table OTP
-      await db.execute('ALTER TABLE users ADD COLUMN email TEXT');
-      await db.execute('ALTER TABLE users ADD COLUMN companyName TEXT');
-      await db.execute('ALTER TABLE users ADD COLUMN isVerified INTEGER NOT NULL DEFAULT 0');
-      await db.execute('ALTER TABLE users ADD COLUMN lastLogin TEXT');
+    // Cette migration englobe toutes les précédentes et force l'ajout si manquant.
+    // C'est une stratégie de "récupération" pour les BD mal migrées.
+    if (oldVersion < 99) {
+      print('🔍 Tentative de migration de récupération vers v99...');
 
-      // Créer la table OTP
-      await db.execute('''
+      // --- Migration v1 -> v2: Ajout de champs users + table OTP (répétée pour robustesse) ---
+      // Si oldVersion était < 2, ces champs pourraient manquer.
+      var usersTableInfo = await db.rawQuery('PRAGMA table_info(users);');
+      var usersColumnNames = usersTableInfo.map((row) => row['name'].toString().toLowerCase()).toList();
+      if (!usersColumnNames.contains('email')) {
+        await db.execute('ALTER TABLE users ADD COLUMN email TEXT');
+      }
+      if (!usersColumnNames.contains('companyname')) {
+        await db.execute('ALTER TABLE users ADD COLUMN companyName TEXT');
+      }
+      if (!usersColumnNames.contains('isverified')) {
+        await db.execute('ALTER TABLE users ADD COLUMN isVerified INTEGER NOT NULL DEFAULT 0');
+      }
+      if (!usersColumnNames.contains('lastlogin')) {
+        await db.execute('ALTER TABLE users ADD COLUMN lastLogin TEXT');
+      }
+      // Vérifier si la table otp_codes existe, sinon la créer
+      var tables = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name='otp_codes';");
+      if (tables.isEmpty) {
+        await db.execute('''
 CREATE TABLE otp_codes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   email TEXT NOT NULL,
@@ -208,24 +224,34 @@ CREATE TABLE otp_codes (
   createdAt TEXT NOT NULL
 );
 ''');
+        await db.execute('CREATE INDEX idx_otp_email ON otp_codes(email);');
+      }
+      print('✅ Migration (récup.) champs users et otp_codes vérifiés.');
 
-      await db.execute('CREATE INDEX idx_otp_email ON otp_codes(email);');
-      
-      print('✅ Migration v1 → v2 réussie');
-    }
-    if (oldVersion < 3) {
-      // Migration de v2 à v3 : ajout de la colonne createdAt à la table clients
-      await db.execute('ALTER TABLE clients ADD COLUMN createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP');
-      print('✅ Migration v2 → v3 réussie : ajout de createdAt à clients');
-    }
-    if (oldVersion < 4) {
-      // Migration de v3 à v4 : ajout de la colonne signaturePath à la table company
-      await db.execute('ALTER TABLE company ADD COLUMN signaturePath TEXT');
-      print('✅ Migration v3 → v4 réussie : ajout de signaturePath à company');
-    }
-    if (oldVersion < 5) {
-      // Migration de v4 à v5 : ajout des tables templates et template_items
-      await db.execute('''
+
+      // --- Migration v2 -> v3: Ajout de createdAt à clients ---
+      var clientsTableInfo = await db.rawQuery('PRAGMA table_info(clients);');
+      var clientsColumnNames = clientsTableInfo.map((row) => row['name'].toString().toLowerCase()).toList();
+      if (!clientsColumnNames.contains('createdat')) {
+        await db.execute('ALTER TABLE clients ADD COLUMN createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP');
+      }
+      print('✅ Migration (récup.) createdAt à clients vérifié.');
+
+
+      // --- Migration v3 -> v4: Ajout de signaturePath à company ---
+      var companyTableInfo = await db.rawQuery('PRAGMA table_info(company);');
+      var companyColumnNames = companyTableInfo.map((row) => row['name'].toString().toLowerCase()).toList();
+      if (!companyColumnNames.contains('signaturepath')) {
+        await db.execute('ALTER TABLE company ADD COLUMN signaturePath TEXT');
+      }
+      print('✅ Migration (récup.) signaturePath à company vérifié.');
+
+
+      // --- Migration v4 -> v5: Ajout des tables templates et template_items ---
+      // Vérifier si la table templates existe, sinon la créer
+      tables = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name='templates';");
+      if (tables.isEmpty) {
+        await db.execute('''
 CREATE TABLE templates (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
@@ -238,10 +264,12 @@ CREATE TABLE templates (
   createdAt TEXT NOT NULL
 );
 ''');
-      
-      await db.execute('CREATE INDEX idx_templates_category ON templates(category);');
-      
-      await db.execute('''
+        await db.execute('CREATE INDEX idx_templates_category ON templates(category);');
+      }
+      // Vérifier si la table template_items existe, sinon la créer
+      tables = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name='template_items';");
+      if (tables.isEmpty) {
+        await db.execute('''
 CREATE TABLE template_items (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   templateId INTEGER NOT NULL,
@@ -254,55 +282,75 @@ CREATE TABLE template_items (
   FOREIGN KEY (templateId) REFERENCES templates(id) ON DELETE CASCADE
 );
 ''');
-      
-      await db.execute('CREATE INDEX idx_template_items_templateId ON template_items(templateId);');
-      
-      print('✅ Migration v4 → v5 réussie : ajout des tables templates');
-    }
-    if (oldVersion < 6) {
-      // Migration de v5 à v6 : rendre clientId nullable et ajouter clientName/clientPhone dans quotes
-      // SQLite ne supporte pas ALTER COLUMN, on doit recréer la table
-      await db.execute('''
-CREATE TABLE quotes_new (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  quoteNumber TEXT NOT NULL UNIQUE,
-  clientId INTEGER,
-  clientName TEXT,
-  clientPhone TEXT,
-  date TEXT NOT NULL,
-  status TEXT NOT NULL,
-  totalHT REAL NOT NULL,
-  totalVAT REAL NOT NULL,
-  totalTTC REAL NOT NULL,
-  FOREIGN KEY (clientId) REFERENCES clients(id) ON DELETE RESTRICT
-);
-''');
-      
-      // Copier les données existantes
-      await db.execute('''
-INSERT INTO quotes_new (id, quoteNumber, clientId, date, status, totalHT, totalVAT, totalTTC)
-SELECT id, quoteNumber, clientId, date, status, totalHT, totalVAT, totalTTC FROM quotes;
-''');
-      
-      // Supprimer l'ancienne table et renommer la nouvelle
-      await db.execute('DROP TABLE quotes;');
-      await db.execute('ALTER TABLE quotes_new RENAME TO quotes;');
-      
-      print('✅ Migration v5 → v6 réussie : clientId nullable + clientName/clientPhone dans quotes');
-    }
-    if (oldVersion < 7) {
-      // Migration de v6 à v7 : ajout de la colonne 'unit'
-      await db.execute("ALTER TABLE products ADD COLUMN unit TEXT NOT NULL DEFAULT 'Unité'");
-      await db.execute("ALTER TABLE quote_items ADD COLUMN unit TEXT");
-      await db.execute("ALTER TABLE template_items ADD COLUMN unit TEXT");
-      print('✅ Migration v6 → v7 réussie : ajout du champ unit');
-    }
-    if (oldVersion < 8) {
-      // Migration de v7 à v8 : ajout des champs de synchronisation pour le mode offline
-      await db.execute('ALTER TABLE quotes ADD COLUMN is_synced INTEGER DEFAULT 1');
-      await db.execute('ALTER TABLE quotes ADD COLUMN synced_at TEXT');
-      await db.execute('ALTER TABLE quotes ADD COLUMN pending_sync INTEGER DEFAULT 0');
-      print('✅ Migration v7 → v8 réussie : ajout des champs offline sync');
+        await db.execute('CREATE INDEX idx_template_items_templateId ON template_items(templateId);');
+      }
+      print('✅ Migration (récup.) tables templates vérifiées.');
+
+
+      // --- Migration v5 -> v6: Rendre clientId nullable et ajouter clientName/clientPhone dans quotes ---
+      // Cette migration est complexe car elle recrée la table. Si elle n'a pas eu lieu,
+      // la table 'quotes' n'aura pas clientName/clientPhone et clientId sera NOT NULL.
+      // Plutôt que de recréer ici, on va s'assurer que si 'quotes' existe, elle a les colonnes.
+      // Si la table quotes est trop ancienne (pas de clientName/Phone), la solution la plus simple
+      // pour éviter la complexité des recréations multiples est de faire un ALTER TABLE ADD COLUMN.
+      // On assume que si la v6 n'a pas été faite, c'est la structure qui manque.
+      var quotesTableInfo = await db.rawQuery('PRAGMA table_info(quotes);');
+      var quotesColumnNames = quotesTableInfo.map((row) => row['name'].toString().toLowerCase()).toList();
+
+      if (!quotesColumnNames.contains('clientname')) {
+        await db.execute('ALTER TABLE quotes ADD COLUMN clientName TEXT');
+      }
+      if (!quotesColumnNames.contains('clientphone')) {
+        await db.execute('ALTER TABLE quotes ADD COLUMN clientPhone TEXT');
+      }
+      // Note: Rendre clientId nullable via ALTER COLUMN n'est pas direct en SQLite.
+      // La recréation de table est gérée par la v6. Si la v6 n'a pas été faite,
+      // on ne peut pas facilement modifier la nullabilité ici. On se concentre sur les colonnes.
+      print('✅ Migration (récup.) champs clients dans quotes vérifiés.');
+
+
+      // --- Migration v6 -> v7: Ajout de la colonne 'unit' ---
+      var productsTableInfo = await db.rawQuery('PRAGMA table_info(products);');
+      var productsColumnNames = productsTableInfo.map((row) => row['name'].toString().toLowerCase()).toList();
+      if (!productsColumnNames.contains('unit')) {
+        await db.execute("ALTER TABLE products ADD COLUMN unit TEXT NOT NULL DEFAULT 'Unité'");
+      }
+
+      var quoteItemsTableInfo = await db.rawQuery('PRAGMA table_info(quote_items);');
+      var quoteItemsColumnNames = quoteItemsTableInfo.map((row) => row['name'].toString().toLowerCase()).toList();
+      if (!quoteItemsColumnNames.contains('unit')) {
+        await db.execute("ALTER TABLE quote_items ADD COLUMN unit TEXT");
+      }
+
+      var templateItemsTableInfo = await db.rawQuery('PRAGMA table_info(template_items);');
+      var templateItemsColumnNames = templateItemsTableInfo.map((row) => row['name'].toString().toLowerCase()).toList();
+      if (!templateItemsColumnNames.contains('unit')) {
+        await db.execute("ALTER TABLE template_items ADD COLUMN unit TEXT");
+      }
+      print('✅ Migration (récup.) champ unit vérifié.');
+
+
+      // --- Migration v7 -> v8 & v8 -> v9: Ajout des champs de synchronisation pour le mode offline ---
+      // (is_synced, synced_at, pending_sync)
+      if (!quotesColumnNames.contains('is_synced')) {
+        await db.execute('ALTER TABLE quotes ADD COLUMN is_synced INTEGER DEFAULT 1');
+      }
+      if (!quotesColumnNames.contains('synced_at')) {
+        await db.execute('ALTER TABLE quotes ADD COLUMN synced_at TEXT');
+      }
+      if (!quotesColumnNames.contains('pending_sync')) {
+        await db.execute('ALTER TABLE quotes ADD COLUMN pending_sync INTEGER DEFAULT 0');
+      }
+      print('✅ Migration (récup.) champs offline sync vérifiés.');
+
+
+      // --- Migration v9 -> v10: Ajout du champ email à la table company ---
+      if (!companyColumnNames.contains('email')) {
+        await db.execute('ALTER TABLE company ADD COLUMN email TEXT');
+      }
+      print('✅ Migration (récup.) champ email à company vérifié.');
+
+      print('🎉 Migration de récupération vers v99 terminée.');
     }
   }
 

@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../blocs/auth/auth_bloc.dart';
+import '../blocs/company/company_bloc.dart'; // Import manquant
 import '../widgets/animated_gradient_button.dart';
 
 class OTPVerificationScreen extends StatefulWidget {
@@ -205,6 +206,17 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
           );
           }
           
+          // ✨ Mettre à jour les informations de l'entreprise lors de l'inscription
+          if (!widget.isLoginMode) {
+            context.read<CompanyBloc>().add(
+                  CompanyUpdateFromRegistration(
+                    name: widget.companyName!,
+                    phone: widget.phoneNumber,
+                    email: widget.email!,
+                  ),
+                );
+          }
+
           // Retourner à l'écran principal (dashboard)
           if (mounted) {
             Navigator.of(context).popUntil((route) => route.isFirst);

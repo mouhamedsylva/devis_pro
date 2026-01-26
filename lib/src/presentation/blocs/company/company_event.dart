@@ -20,3 +20,18 @@ class CompanyUpdated extends CompanyEvent {
   List<Object?> get props => [company];
 }
 
+class CompanyUpdateFromRegistration extends CompanyEvent {
+  const CompanyUpdateFromRegistration({
+    required this.name,
+    required this.phone,
+    required this.email,
+  });
+
+  final String name;
+  final String phone;
+  final String email;
+
+  @override
+  List<Object?> get props => [name, phone, email];
+}
+

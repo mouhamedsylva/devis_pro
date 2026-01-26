@@ -31,6 +31,37 @@ class CompanyBloc extends Bloc<CompanyEvent, CompanyState> {
         emit(CompanyState.failure(e.toString()));
       }
     });
+
+    on<CompanyUpdateFromRegistration>((event, emit) async {
+      // Pas besoin d'émettre "loading" pour ne pas perturber l'UI
+      try {
+        // 1. Récupérer l'entreprise actuelle
+        final currentCompany = await _companyRepository.getCompany();
+
+        // 2. Créer l'objet mis à jour
+        final updatedCompany = Company(
+          id: currentCompany.id,
+          name: event.name,
+          phone: event.phone,
+          email: event.email,
+          address: currentCompany.address, // Garder les valeurs existantes
+          logoPath: currentCompany.logoPath,
+          currency: currentCompany.currency,
+          vatRate: currentCompany.vatRate,
+          signaturePath: currentCompany.signaturePath,
+        );
+
+        // 3. Mettre à jour en base de données
+        await _companyRepository.updateCompany(updatedCompany);
+
+        // 4. Émettre le nouvel état pour que l'UI se mette à jour
+        emit(CompanyState.loaded(updatedCompany));
+      } catch (e) {
+        // En cas d'erreur, on peut émettre un état d'échec
+        // mais on évite de bloquer l'utilisateur qui vient de s'inscrire
+        print('Erreur lors de la mise à jour de l\'entreprise après inscription: $e');
+      }
+    });
   }
 
   final CompanyRepository _companyRepository;

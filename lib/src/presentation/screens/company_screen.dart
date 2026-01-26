@@ -24,6 +24,7 @@ class _CompanyScreenState extends State<CompanyScreen> {
   final _nameCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _addressCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController(); // Ajout du contrôleur email
   final _currencyCtrl = TextEditingController(text: 'FCFA');
   final _vatCtrl = TextEditingController(text: '18');
   
@@ -42,6 +43,7 @@ class _CompanyScreenState extends State<CompanyScreen> {
     _nameCtrl.dispose();
     _phoneCtrl.dispose();
     _addressCtrl.dispose();
+    _emailCtrl.dispose(); // Dispose du contrôleur
     _currencyCtrl.dispose();
     _vatCtrl.dispose();
     super.dispose();
@@ -327,7 +329,7 @@ class _CompanyScreenState extends State<CompanyScreen> {
           );
         },
         builder: (context, state) {
-          if (state.status == CompanyStatus.loading) {
+          if (state.status == CompanyStatus.loading && state.company == null) {
             return const Center(child: CircularProgressIndicator());
           }
           
@@ -336,6 +338,7 @@ class _CompanyScreenState extends State<CompanyScreen> {
             _nameCtrl.text = company.name;
             _phoneCtrl.text = company.phone;
             _addressCtrl.text = company.address;
+            _emailCtrl.text = company.email ?? ''; // Peupler l'email
             _currencyCtrl.text = company.currency;
             _vatCtrl.text = (company.vatRate * 100).toStringAsFixed(0);
             _selectedLogoPath = company.logoPath;
@@ -376,6 +379,13 @@ class _CompanyScreenState extends State<CompanyScreen> {
                             label: 'Téléphone professionnel',
                             keyboardType: TextInputType.phone,
                             prefixIcon: Icons.phone_android,
+                          ),
+                          const SizedBox(height: 16),
+                          AppTextField(
+                            controller: _emailCtrl,
+                            label: 'Email de contact',
+                            keyboardType: TextInputType.emailAddress,
+                            prefixIcon: Icons.email_outlined,
                           ),
                           const SizedBox(height: 16),
                           AppTextField(
@@ -970,6 +980,7 @@ class _CompanyScreenState extends State<CompanyScreen> {
       name: _nameCtrl.text.trim(),
       phone: _phoneCtrl.text.trim(),
       address: _addressCtrl.text.trim(),
+      email: _emailCtrl.text.trim(), // Sauvegarder l'email
       logoPath: _selectedLogoPath,
       currency: _currencyCtrl.text.trim(),
       vatRate: vatRate / 100,
