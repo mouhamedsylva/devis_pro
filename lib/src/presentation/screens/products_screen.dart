@@ -238,7 +238,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     String selectedUnit = existing?.unit ?? 'Unité';
     final List<String> units = ['Unité', 'm', 'm²', 'm³', 'kg', 'Litre', 'Heure', 'Jour', 'Forfait', 'Sac', 'Voyage'];
 
-    final saved = await showDialog<bool>(
+    final saved = await showDialog<dynamic>(
       context: context,
       barrierDismissible: true,
       useSafeArea: true,

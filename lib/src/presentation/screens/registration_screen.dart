@@ -316,7 +316,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> with TickerProv
         position: _slideAnimation,
         child: Form(
           key: _formKey,
-          autovalidateMode: AutovalidateMode.onUserInteraction,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [

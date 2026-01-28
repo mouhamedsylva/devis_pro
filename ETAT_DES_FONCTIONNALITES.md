@@ -53,3 +53,12 @@ Ce document récapitule les fonctionnalités implémentées dans la version actu
 ### 5. Communication
 - **Envoi Direct WhatsApp** : Partage du PDF via WhatsApp directement depuis l'application.
 - **Historique d'Activité** : Journal des modifications détaillé pour chaque devis.
+
+
+
+
+
+
+
+
+

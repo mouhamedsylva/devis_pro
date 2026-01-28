@@ -6,6 +6,7 @@ import 'package:image_cropper/image_cropper.dart';
 import 'package:signature/signature.dart';
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../core/constants/app_colors.dart';
@@ -51,6 +52,7 @@ class _CompanyScreenState extends State<CompanyScreen> {
 
   Future<void> _pickLogo() async {
     try {
+      await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
       final XFile? image = await _picker.pickImage(
         source: ImageSource.gallery,
         imageQuality: 100,
@@ -93,8 +95,15 @@ class _CompanyScreenState extends State<CompanyScreen> {
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur: $e')),
+        SnackBar(
+          content: Text('Erreur: $e'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.only(bottom: 20),
+        ),
       );
+    } finally {
+      await SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: SystemUiOverlay.values);
     }
   }
 
@@ -113,7 +122,12 @@ class _CompanyScreenState extends State<CompanyScreen> {
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur: $e')),
+        SnackBar(
+          content: Text('Erreur: $e'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.only(bottom: 20),
+        ),
       );
     }
   }
@@ -171,7 +185,14 @@ class _CompanyScreenState extends State<CompanyScreen> {
         await file.writeAsBytes(result);
         setState(() => _selectedSignaturePath = filePath);
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.only(bottom: 20),
+          ),
+        );
       }
     }
     signatureController.dispose();
@@ -448,6 +469,13 @@ class _CompanyScreenState extends State<CompanyScreen> {
       email: _emailCtrl.text.trim(), logoPath: _selectedLogoPath, currency: _currencyCtrl.text.trim(),
       vatRate: vatRate / 100, signaturePath: _selectedSignaturePath,
     )));
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profil mis à jour ✨'), backgroundColor: Colors.green));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Profil mis à jour ✨'),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.only(bottom: 20), // Standard bottom margin
+      ),
+    );
   }
 }
