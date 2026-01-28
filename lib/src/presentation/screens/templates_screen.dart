@@ -7,6 +7,7 @@ import '../blocs/template/template_bloc.dart';
 import '../blocs/template/template_event.dart';
 import '../blocs/template/template_state.dart';
 import 'template_editor_screen.dart';
+import '../widgets/confirmation_dialog.dart';
 
 /// Écran de gestion des templates de devis.
 class TemplatesScreen extends StatefulWidget {
@@ -144,21 +145,40 @@ class _TemplatesScreenState extends State<TemplatesScreen>
           return const Center(child: Text('Chargement...'));
         },
       ),
-      floatingActionButton: _selectedCategory == 'Personnalisés'
-          ? FloatingActionButton.extended(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const TemplateEditorScreen()),
-                );
-              },
-              backgroundColor: AppColors.yellow,
-              icon: const Icon(Icons.add, color: Colors.white),
-              label: const Text(
-                'Nouveau template',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
+      floatingActionButton: _selectedCategory == 'Personnalisés' || _selectedCategory == 'Tous'
+          ? Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                gradient: const LinearGradient(
+                  colors: [
+                    Color(0xFFFDB913),
+                    Color(0xFFFFD700),
+                  ],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.yellow.withOpacity(0.4),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: FloatingActionButton.extended(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const TemplateEditorScreen()),
+                  );
+                },
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                icon: const Icon(Icons.add_rounded, color: Colors.white),
+                label: const Text(
+                  'Nouveau modèle',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             )
@@ -171,7 +191,6 @@ class _TemplatesScreenState extends State<TemplatesScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Logo DevisPro
           Container(
             width: 120,
             height: 120,
@@ -194,7 +213,7 @@ class _TemplatesScreenState extends State<TemplatesScreen>
           ),
           const SizedBox(height: 24),
           Text(
-            'Aucun template',
+            'Aucun modèle',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -204,15 +223,15 @@ class _TemplatesScreenState extends State<TemplatesScreen>
           const SizedBox(height: 8),
           Text(
             _selectedCategory == 'Personnalisés'
-                ? 'Créez votre premier template personnalisé'
-                : 'Aucun template dans cette catégorie',
+                ? 'Créez votre premier modèle personnalisé'
+                : 'Aucun modèle dans cette catégorie',
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey[600],
             ),
             textAlign: TextAlign.center,
           ),
-          if (_selectedCategory == 'Personnalisés') ...[
+          if (_selectedCategory == 'Personnalisés' || _selectedCategory == 'Tous') ...[
             const SizedBox(height: 32),
             ElevatedButton.icon(
               onPressed: () {
@@ -222,7 +241,7 @@ class _TemplatesScreenState extends State<TemplatesScreen>
                 );
               },
               icon: const Icon(Icons.add),
-              label: const Text('Créer un template'),
+              label: const Text('Créer un modèle'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.yellow,
                 foregroundColor: Colors.white,
@@ -251,132 +270,156 @@ class _TemplatesScreenState extends State<TemplatesScreen>
   }
 
   Widget _buildTemplateCard(QuoteTemplate template) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+    return Dismissible(
+      key: ValueKey('template_${template.id}'),
+      direction: template.isCustom ? DismissDirection.endToStart : DismissDirection.none,
+      confirmDismiss: (direction) async {
+        return await showDialog<bool>(
+          context: context,
+          builder: (context) => ConfirmationDialog(
+            title: 'Supprimer le modèle ?',
+            content: 'Voulez-vous vraiment supprimer le modèle "${template.name}" ? Cette action est irréversible.',
+            confirmText: 'Supprimer',
+            confirmColor: Colors.red,
+            onConfirm: () => Navigator.of(context).pop(true),
+          ),
+        );
+      },
+      onDismissed: (direction) {
+        context.read<TemplateBloc>().add(TemplateDelete(template.id));
+      },
+      background: Container(
+        padding: const EdgeInsets.only(right: 20),
+        decoration: BoxDecoration(
+          color: Colors.red,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        alignment: Alignment.centerRight,
+        child: const Icon(Icons.delete_outline, color: Colors.white, size: 30),
       ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () {
-          _showTemplateDetails(template);
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header: Nom + Badge catégorie + Actions
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          template.name,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+      child: Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            _showTemplateDetails(template);
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            template.name,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          template.description,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
+                          const SizedBox(height: 4),
+                          Text(
+                            template.description,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Badge catégorie
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _getCategoryColor(template.category).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: _getCategoryColor(template.category),
-                        width: 1.5,
+                        ],
                       ),
                     ),
-                    child: Text(
-                      template.category,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: _getCategoryColor(template.category),
+                    const SizedBox(width: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _getCategoryColor(template.category).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: _getCategoryColor(template.category),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Text(
+                        template.category,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: _getCategoryColor(template.category),
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              // Informations complémentaires
-              Row(
-                children: [
-                  Icon(
-                    template.isCustom ? Icons.person : Icons.star,
-                    size: 16,
-                    color: template.isCustom ? Colors.blue : AppColors.yellow,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    template.isCustom ? 'Personnalisé' : 'Prédéfini',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey[700],
-                    ),
-                  ),
-                  if (template.validityDays != null) ...[
-                    const SizedBox(width: 16),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
                     Icon(
-                      Icons.calendar_today,
+                      template.isCustom ? Icons.person : Icons.star,
                       size: 16,
-                      color: Colors.grey[600],
+                      color: template.isCustom ? Colors.blue : AppColors.yellow,
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      '${template.validityDays} jours',
+                      template.isCustom ? 'Personnalisé' : 'Prédéfini',
                       style: TextStyle(
                         fontSize: 13,
                         color: Colors.grey[700],
                       ),
                     ),
-                  ],
-                  const Spacer(),
-                  // Boutons d'action
-                  IconButton(
-                    icon: const Icon(Icons.visibility_outlined),
-                    color: Colors.blue,
-                    tooltip: 'Voir détails',
-                    onPressed: () => _showTemplateDetails(template),
-                  ),
-                  if (template.isCustom) ...[
+                    if (template.validityDays != null) ...[
+                      const SizedBox(width: 16),
+                      Icon(
+                        Icons.calendar_today,
+                        size: 16,
+                        color: Colors.grey[600],
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${template.validityDays} jours',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                    ],
+                    const Spacer(),
                     IconButton(
-                      icon: const Icon(Icons.edit_outlined),
-                      color: AppColors.yellow,
-                      tooltip: 'Modifier',
-                      onPressed: () => _openEditor(template),
+                      icon: const Icon(Icons.visibility_outlined),
+                      color: Colors.blue,
+                      tooltip: 'Voir détails',
+                      onPressed: () => _showTemplateDetails(template),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline),
-                      color: Colors.red,
-                      tooltip: 'Supprimer',
-                      onPressed: () => _confirmDeleteTemplate(template),
-                    ),
+                    if (template.isCustom) ...[
+                      IconButton(
+                        icon: const Icon(Icons.edit_outlined),
+                        color: AppColors.yellow,
+                        tooltip: 'Modifier',
+                        onPressed: () => _openEditor(template),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline),
+                        color: Colors.red,
+                        tooltip: 'Supprimer',
+                        onPressed: () => _confirmDeleteTemplate(template),
+                      ),
+                    ],
                   ],
-                ],
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -401,12 +444,6 @@ class _TemplatesScreenState extends State<TemplatesScreen>
   }
 
   void _showTemplateDetails(QuoteTemplate template) async {
-    // Charger les détails du template
-    context.read<TemplateBloc>().add(TemplateLoadDetails(template.id));
-    
-    // Attendre un peu pour que le bloc commence à charger
-    await Future.delayed(const Duration(milliseconds: 100));
-
     if (!mounted) return;
 
     showModalBottomSheet(
@@ -414,6 +451,9 @@ class _TemplatesScreenState extends State<TemplatesScreen>
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (bottomSheetContext) {
+        // Déclencher le chargement juste avant de construire le modal
+        context.read<TemplateBloc>().add(TemplateLoadDetails(template.id));
+        
         return DraggableScrollableSheet(
           initialChildSize: 0.7,
           minChildSize: 0.5,
@@ -437,43 +477,22 @@ class _TemplatesScreenState extends State<TemplatesScreen>
                   }
                 },
                 buildWhen: (previous, current) {
-                  // Ne reconstruire que pour les états pertinents
-                  return current is TemplateLoading ||
-                      current is TemplateDetailsLoaded ||
-                      current is TemplateError;
+                  // Ne reconstruire que pour les états pertinents pour CETTE modale
+                  if (current is TemplateDetailsLoaded) {
+                    return current.template.id == template.id;
+                  }
+                  return current is TemplateLoading || current is TemplateError;
                 },
                 builder: (context, state) {
-                  // Afficher le chargement si on est en train de charger
-                  if (state is TemplateLoading) {
-                    return const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(24.0),
-                        child: CircularProgressIndicator(),
-                      ),
+                  if (state is TemplateDetailsLoaded) {
+                    // Si on arrive ici, on sait que c'est le bon template grâce au `buildWhen`
+                    return _buildTemplateDetailsContent(
+                      state.template,
+                      state.items,
+                      scrollController,
                     );
                   }
 
-                  // Afficher les détails si chargés
-                  if (state is TemplateDetailsLoaded) {
-                    // Vérifier que c'est bien le bon template
-                    if (state.template.id == template.id) {
-                      return _buildTemplateDetailsContent(
-                        state.template,
-                        state.items,
-                        scrollController,
-                      );
-                    } else {
-                      // Si ce n'est pas le bon template, attendre
-                      return const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(24.0),
-                          child: CircularProgressIndicator(),
-                        ),
-                      );
-                    }
-                  }
-
-                  // Gérer les erreurs
                   if (state is TemplateError) {
                     return Center(
                       child: Padding(
@@ -498,7 +517,6 @@ class _TemplatesScreenState extends State<TemplatesScreen>
                             const SizedBox(height: 8),
                             TextButton(
                               onPressed: () {
-                                // Réessayer de charger
                                 context.read<TemplateBloc>().add(
                                       TemplateLoadDetails(template.id),
                                     );
@@ -511,8 +529,7 @@ class _TemplatesScreenState extends State<TemplatesScreen>
                     );
                   }
 
-                  // Pour tous les autres états (TemplateListLoaded, etc.), afficher le chargement
-                  // car on attend que les détails soient chargés
+                  // Pour tous les autres états (initial, loading)
                   return const Center(
                     child: Padding(
                       padding: EdgeInsets.all(24.0),
@@ -526,7 +543,6 @@ class _TemplatesScreenState extends State<TemplatesScreen>
         );
       },
     ).then((_) {
-      // Recharger la liste après fermeture du bottom sheet
       if (mounted) {
         _loadTemplates();
       }
@@ -538,7 +554,6 @@ class _TemplatesScreenState extends State<TemplatesScreen>
     List<TemplateItem> items,
     ScrollController scrollController,
   ) {
-    // Calcul du total
     double totalHT = 0;
     for (final item in items) {
       totalHT += item.total;
@@ -548,7 +563,6 @@ class _TemplatesScreenState extends State<TemplatesScreen>
 
     return Column(
       children: [
-        // Handle de drag
         Container(
           margin: const EdgeInsets.only(top: 12, bottom: 8),
           width: 40,
@@ -558,7 +572,6 @@ class _TemplatesScreenState extends State<TemplatesScreen>
             borderRadius: BorderRadius.circular(2),
           ),
         ),
-        // Header
         Padding(
           padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
           child: Row(
@@ -605,7 +618,6 @@ class _TemplatesScreenState extends State<TemplatesScreen>
               ElevatedButton.icon(
                 onPressed: () {
                   Navigator.pop(context);
-                  // Navigation vers l'éditeur de devis avec les données du template
                   _useTemplate(template);
                 },
                 icon: const Icon(Icons.add),
@@ -622,13 +634,11 @@ class _TemplatesScreenState extends State<TemplatesScreen>
           ),
         ),
         const Divider(height: 1),
-        // Liste des items
         Expanded(
           child: ListView(
             controller: scrollController,
             padding: const EdgeInsets.all(24),
             children: [
-              // Informations du template
               if (template.notes != null) ...[
                 _buildInfoSection('Notes', template.notes!),
                 const SizedBox(height: 16),
@@ -637,7 +647,6 @@ class _TemplatesScreenState extends State<TemplatesScreen>
                 _buildInfoSection('Conditions', template.termsAndConditions!),
                 const SizedBox(height: 16),
               ],
-              // Items
               const Text(
                 'Articles / Services',
                 style: TextStyle(
@@ -648,7 +657,6 @@ class _TemplatesScreenState extends State<TemplatesScreen>
               const SizedBox(height: 12),
               ...items.map((item) => _buildItemCard(item)),
               const SizedBox(height: 24),
-              // Total
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -787,37 +795,21 @@ class _TemplatesScreenState extends State<TemplatesScreen>
   void _confirmDeleteTemplate(QuoteTemplate template) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Supprimer le template'),
-        content: Text(
-          'Êtes-vous sûr de vouloir supprimer le template "${template.name}" ?\n\nCette action est irréversible.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              context.read<TemplateBloc>().add(TemplateDelete(template.id));
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Supprimer'),
-          ),
-        ],
+      builder: (context) => ConfirmationDialog(
+        title: 'Supprimer le modèle',
+        content: 'Êtes-vous sûr de vouloir supprimer le modèle "${template.name}" ?\n\nCette action est irréversible.',
+        confirmText: 'Supprimer',
+        confirmColor: Colors.red,
+        onConfirm: () {
+          Navigator.pop(context);
+          context.read<TemplateBloc>().add(TemplateDelete(template.id));
+        },
       ),
     );
   }
 
   Future<void> _openEditor(QuoteTemplate template) async {
-    // Charger les détails pour avoir les items
     context.read<TemplateBloc>().add(TemplateLoadDetails(template.id));
-
-    // Attendre le chargement
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -825,13 +817,12 @@ class _TemplatesScreenState extends State<TemplatesScreen>
     );
 
     try {
-      // On attend l'état chargé
       final state = await context.read<TemplateBloc>().stream.firstWhere(
             (s) => s is TemplateDetailsLoaded || s is TemplateError,
           );
 
       if (!mounted) return;
-      Navigator.pop(context); // Fermer loader
+      Navigator.pop(context);
 
       if (state is TemplateDetailsLoaded) {
         final result = await Navigator.push(

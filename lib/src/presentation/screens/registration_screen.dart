@@ -97,7 +97,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> with TickerProv
     _slideController.dispose();
     _phoneFocus.dispose();
     super.dispose();
-  }
+  } 
 
   void _requestOTP() {
     if (_formKey.currentState!.validate()) {
@@ -189,43 +189,29 @@ class _RegistrationScreenState extends State<RegistrationScreen> with TickerProv
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Logo
-                      Image.asset(
-                        'assets/images/logo2.png',
-                        width: isWeb ? 300 : 250,
-                        height: isWeb ? 100 : 80,
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) {
-                          // Si pas de logo, afficher le texte DEVISPRO
-                          return Column(
-                            children: [
-                              RichText(
-                                text: TextSpan(
-                                  children: [
-                                    TextSpan(
-                                      text: 'DEVIS',
-                                      style: TextStyle(
-                                        fontSize: isWeb ? 48 : 40,
-                                        fontWeight: FontWeight.w900,
-                                        color: AppColors.yellow,
-                                        letterSpacing: 2,
-                                      ),
-                                    ),
-                                    TextSpan(
-                                      text: 'PRO',
-                                      style: TextStyle(
-                                        fontSize: isWeb ? 48 : 40,
-                                        fontWeight: FontWeight.w900,
-                                        color: Colors.white,
-                                        letterSpacing: 2,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          );
-                        },
+                      // Logo Circular
+                      Container(
+                        width: isWeb ? 180 : 150,
+                        height: isWeb ? 180 : 150,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFDB913), Color(0xFFFFD700)],
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.yellow.withOpacity(0.3),
+                              blurRadius: 20,
+                              spreadRadius: 5,
+                            ),
+                          ],
+                        ),
+                        child: ClipOval(
+                          child: Image.asset(
+                            'assets/images/logo2.png',
+                            fit: BoxFit.cover,
+                          ),
+                        ),
                       ),
 
                       const SizedBox(height: 16),
@@ -495,7 +481,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> with TickerProv
 
               // Info
               Text(
-                '📧 Un code de vérification sera envoyé à votre email.',
+                ' Un code de vérification sera envoyé à votre email.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: isWeb ? 12 : 11,
@@ -561,6 +547,13 @@ class _RegistrationScreenState extends State<RegistrationScreen> with TickerProv
     if (value == null || value.trim().isEmpty) {
       return 'Le nom de l\'entreprise est requis';
     }
+
+    // ✨ Nouvelle validation : Lettres, espaces et symbole '.' seulement
+    final companyRegex = RegExp(r'^[a-zA-Z\s\.]+$');
+    if (!companyRegex.hasMatch(value.trim())) {
+      return 'Lettres, espaces et point (.) seulement';
+    }
+
     if (value.trim().length < 2) {
       return 'Le nom doit contenir au moins 2 caractères';
     }

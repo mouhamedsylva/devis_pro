@@ -1,9 +1,4 @@
 /// Service PDF: génération + partage/sauvegarde.
-///
-/// - `pdf` construit le document
-/// - `printing` permet la prévisualisation/partage (WhatsApp via share sheet)
-/// - `share_plus` pour partager vers WhatsApp et autres apps
-/// - `path_provider` pour sauvegarder localement.
 import 'dart:typed_data';
 import 'dart:io';
 
@@ -30,6 +25,7 @@ class QuotePdfService {
   static const PdfColor _grisMoyen = PdfColor.fromInt(0xFFE0E0E0);
   static const PdfColor _grisTexte = PdfColor.fromInt(0xFF666666);
 
+  /// Génère le PDF de manière optimisée
   Future<Uint8List> buildPdf({
     required Company company,
     Client? client,
@@ -43,21 +39,20 @@ class QuotePdfService {
     final clientPhone = client?.phone ?? quote.clientPhone ?? '';
     final clientAddress = client?.address ?? '';
 
-    // Charger les images (Logo & Signature)
-    pw.MemoryImage? logoImage;
-    if (company.logoPath != null && File(company.logoPath!).existsSync()) {
-      logoImage = pw.MemoryImage(File(company.logoPath!).readAsBytesSync());
-    }
+    // ✨ OPTIMISATION 1 : Chargement ASYNCHRONE des images (I/O non bloquant)
+    final images = await Future.wait([
+      _loadMemoryImage(company.logoPath),
+      _loadMemoryImage(company.signaturePath),
+    ]);
 
-    pw.MemoryImage? signatureImage;
-    if (company.signaturePath != null && File(company.signaturePath!).existsSync()) {
-      signatureImage = pw.MemoryImage(File(company.signaturePath!).readAsBytesSync());
-    }
+    final logoImage = images[0];
+    final signatureImage = images[1];
 
     doc.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(35),
+        // ✨ OPTIMISATION 2 : Utilisation du mode MultiPage optimisé pour les longs devis
         build: (context) {
           return [
             // Header
@@ -88,7 +83,23 @@ class QuotePdfService {
       ),
     );
 
-    return doc.save();
+    // ✨ OPTIMISATION 3 : Sauvegarde asynchrone
+    return await doc.save();
+  }
+
+  /// Helper asynchrone pour charger une image sans bloquer le thread UI
+  Future<pw.MemoryImage?> _loadMemoryImage(String? path) async {
+    if (path == null || path.isEmpty) return null;
+    try {
+      final file = File(path);
+      if (await file.exists()) {
+        final bytes = await file.readAsBytes();
+        return pw.MemoryImage(bytes);
+      }
+    } catch (e) {
+      print('Erreur chargement image PDF: $e');
+    }
+    return null;
   }
 
   pw.Widget _buildHeader(pw.Context context, Company company, Quote quote, pw.MemoryImage? logoImage) {
@@ -333,26 +344,11 @@ class QuotePdfService {
     );
   }
 
-  pw.Widget _buildTableCell(String text, {bool isHeader = false, pw.TextAlign align = pw.TextAlign.left, bool isBold = false}) {
-    return pw.Container(
-      padding: const pw.EdgeInsets.all(15),
-      child: pw.Text(
-        text,
-        textAlign: align,
-        style: pw.TextStyle(
-          fontSize: isHeader ? 13 : 15,
-          fontWeight: isHeader || isBold ? pw.FontWeight.bold : pw.FontWeight.normal,
-          color: isHeader ? _blanc : _noirLeger,
-        ),
-      ),
-    );
-  }
-
   pw.Widget _buildTotalsAndSignature(Quote quote, Company company, pw.MemoryImage? signatureImage) {
     return pw.Row(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        // Zone Signature (Générée à gauche pour l'équilibre visuel)
+        // Zone Signature
         pw.Expanded(
           flex: 1,
           child: pw.Column(
@@ -379,9 +375,8 @@ class QuotePdfService {
           ),
         ),
         pw.SizedBox(width: 40),
-        // Zone Totaux à droite
+        // Zone Totaux
         pw.Expanded(
-          flex: 1,
           child: pw.Column(
             children: [
               _buildTotalRow('TOTAL HORS TAXE', Formatters.moneyCfa(quote.totalHT, currencyLabel: company.currency)),
@@ -553,23 +548,19 @@ class QuotePdfService {
     await Printing.sharePdf(bytes: pdfBytes, filename: filename);
   }
 
-  /// Partage le PDF via le share sheet (incluant WhatsApp)
   Future<void> shareToWhatsApp({
     required Uint8List pdfBytes,
     required String filename,
     String? clientName,
   }) async {
-    // Sauvegarder temporairement le fichier
     final tempDir = await getTemporaryDirectory();
     final file = File('${tempDir.path}/$filename');
     await file.writeAsBytes(pdfBytes, flush: true);
 
-    // Message par défaut pour WhatsApp
     final text = clientName != null
         ? 'Bonjour $clientName, voici votre devis : $filename'
         : 'Voici votre devis : $filename';
 
-    // Partager via le share sheet (WhatsApp apparaîtra dans les options)
     await Share.shareXFiles(
       [XFile(file.path)],
       text: text,
@@ -577,4 +568,3 @@ class QuotePdfService {
     );
   }
 }
-

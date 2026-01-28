@@ -84,7 +84,8 @@ class QuoteRepositoryImpl implements QuoteRepository {
   }) async {
     final db = _db.database;
 
-    return db.transaction((txn) async {
+    // On effectue les insertions dans une transaction
+    final Quote createdQuote = await db.transaction((txn) async {
       final quoteNumber = await _generateQuoteNumber(txn);
 
       double totalHT = 0;
@@ -126,15 +127,18 @@ class QuoteRepositoryImpl implements QuoteRepository {
         });
       }
 
-      await _activityRepo.log(
-        action: 'Devis créé',
-        details: 'Devis: $quoteNumber pour ${clientName ?? "Client"}',
-        type: 'quote',
-      );
-
       final rows = await txn.query('quotes', where: 'id = ?', whereArgs: [quoteId], limit: 1);
       return QuoteModel.fromMap(rows.first);
     });
+
+    // ✨ On log l'activité APRES la transaction pour éviter un deadlock SQLite
+    await _activityRepo.log(
+      action: 'Devis créé',
+      details: 'Devis: ${createdQuote.quoteNumber} pour ${clientName ?? "Client"}',
+      type: 'quote',
+    );
+
+    return createdQuote;
   }
 
   @override
@@ -148,9 +152,10 @@ class QuoteRepositoryImpl implements QuoteRepository {
     );
 
     if (rows.isNotEmpty) {
+      final quoteNumber = rows.first['quoteNumber'] as String;
       await _activityRepo.log(
         action: 'Statut du devis modifié',
-        details: 'Devis: ${rows.first['quoteNumber']} passé à $status',
+        details: 'Devis: $quoteNumber passé à $status',
         type: 'quote',
       );
     }
@@ -160,12 +165,12 @@ class QuoteRepositoryImpl implements QuoteRepository {
   Future<void> delete(int quoteId) async {
     final rows = await _db.database.query('quotes', where: 'id = ?', whereArgs: [quoteId], limit: 1);
     await _db.database.delete('quotes', where: 'id = ?', whereArgs: [quoteId]);
-    // Note: quote_items are deleted by CASCADE in SQL schema
 
     if (rows.isNotEmpty) {
+      final quoteNumber = rows.first['quoteNumber'] as String;
       await _activityRepo.log(
         action: 'Devis supprimé',
-        details: 'Devis: ${rows.first['quoteNumber']}',
+        details: 'Devis: $quoteNumber',
         type: 'quote',
       );
     }

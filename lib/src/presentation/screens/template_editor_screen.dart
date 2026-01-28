@@ -6,6 +6,7 @@ import '../../domain/entities/template.dart';
 import '../blocs/template/template_bloc.dart';
 import '../blocs/template/template_event.dart';
 import '../blocs/template/template_state.dart';
+import '../widgets/confirmation_dialog.dart';
 
 /// Écran de création d'un template personnalisé.
 class TemplateEditorScreen extends StatefulWidget {
@@ -25,19 +26,20 @@ class TemplateEditorScreen extends StatefulWidget {
 class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  late final TextEditingController _nameCtrl;
-  late final TextEditingController _descCtrl;
-  late final TextEditingController _notesCtrl;
-  late final TextEditingController _validityCtrl;
-  late final TextEditingController _termsCtrl;
+  late TextEditingController _nameCtrl;
+  late TextEditingController _descCtrl;
+  late TextEditingController _notesCtrl;
+  late TextEditingController _validityCtrl;
+  late TextEditingController _termsCtrl;
 
-  late String _category;
+  String _category = 'BTP';
   final List<_EditableTemplateItem> _items = [];
 
   bool _submitted = false;
 
-  static const _categories = <String>[
+  final List<String> _categories = [
     'BTP',
+    'Construction',
     'IT',
     'Consulting',
     'Commerce',
@@ -108,35 +110,36 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
   void _submit() {
     setState(() => _submitted = true);
 
-    final valid = _formKey.currentState?.validate() ?? false;
-    if (!valid) return;
+    if (!(_formKey.currentState?.validate() ?? false)) return;
 
     if (_items.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Ajoutez au moins un article au modèle'),
-          backgroundColor: Colors.orange,
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.white),
+              SizedBox(width: 12),
+              Expanded(child: Text('Veuillez ajouter au moins un article')),
+            ],
+          ),
+          backgroundColor: Colors.orange.shade700,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
       return;
     }
 
-    final name = _nameCtrl.text.trim();
-    final description = _descCtrl.text.trim();
-    final notes = _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim();
-    final terms = _termsCtrl.text.trim().isEmpty ? null : _termsCtrl.text.trim();
-    final validityDays = int.tryParse(_validityCtrl.text.trim());
-
     final template = QuoteTemplate(
       id: widget.initialTemplate?.id ?? 0,
-      name: name,
-      description: description,
+      name: _nameCtrl.text.trim(),
+      description: _descCtrl.text.trim(),
       category: _category,
       isCustom: true,
       createdAt: widget.initialTemplate?.createdAt ?? DateTime.now(),
-      notes: notes,
-      validityDays: validityDays,
-      termsAndConditions: terms,
+      notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+      validityDays: int.tryParse(_validityCtrl.text.trim()),
+      termsAndConditions: _termsCtrl.text.trim().isEmpty ? null : _termsCtrl.text.trim(),
     );
 
     final items = _items.asMap().entries.map((entry) {
@@ -167,209 +170,229 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     return BlocListener<TemplateBloc, TemplateState>(
       listener: (context, state) {
         if (state is TemplateCreated || state is TemplateUpdated) {
-          final isUpdate = state is TemplateUpdated;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(isUpdate ? 'Modèle mis à jour' : 'Modèle créé avec succès'),
-              backgroundColor: Colors.green,
+              content: const Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.white),
+                  SizedBox(width: 12),
+                  Expanded(child: Text('Modèle enregistré avec succès')),
+                ],
+              ),
+              backgroundColor: Colors.green.shade600,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
           );
           Navigator.pop(context, true);
-        }
-        if (state is TemplateError) {
+        } else if (state is TemplateError) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(state.message),
-              backgroundColor: Colors.red,
+              content: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.white),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text(state.message)),
+                ],
+              ),
+              backgroundColor: Colors.red.shade600,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
           );
         }
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFF5F5F5),
+        backgroundColor: Colors.grey[50],
         appBar: AppBar(
-          title: const Text('Nouveau modèle'),
+          elevation: 0,
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.grey[800],
+          title: Text(
+            widget.initialTemplate == null ? 'Nouveau modèle' : 'Modifier modèle',
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
           actions: [
-            BlocBuilder<TemplateBloc, TemplateState>(
-              builder: (context, state) {
-                final loading = state is TemplateLoading;
-                return TextButton.icon(
-                  onPressed: loading ? null : _submit,
-                  icon: loading
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.check, color: Colors.white),
-                  label: const Text('Enregistrer', style: TextStyle(color: Colors.white)),
-                );
-              },
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: TextButton.icon(
+                icon: const Icon(Icons.check, size: 20),
+                label: const Text('Enregistrer'),
+                onPressed: _submit,
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.yellow,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                ),
+              ),
             ),
           ],
         ),
-        body: SafeArea(
-          child: Form(
-            key: _formKey,
-            child: ListView(
-              padding: const EdgeInsets.all(16),
+        body: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _sectionCard(
-                  title: 'Informations',
-                  child: Column(
-                    children: [
-                      TextFormField(
-                        controller: _nameCtrl,
-                        textInputAction: TextInputAction.next,
-                        decoration: const InputDecoration(
-                          labelText: 'Nom du modèle *',
-                          hintText: 'Ex: Devis Rénovation Appartement',
-                          prefixIcon: Icon(Icons.title),
-                        ),
-                        validator: (v) {
-                          if (!_submitted) return null;
-                          if (v == null || v.trim().isEmpty) return 'Le nom est requis';
-                          if (v.trim().length < 3) return 'Minimum 3 caractères';
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: _descCtrl,
-                        textInputAction: TextInputAction.newline,
-                        decoration: const InputDecoration(
-                          labelText: 'Description *',
-                          hintText: 'Décrivez brièvement ce modèle',
-                          prefixIcon: Icon(Icons.subject),
-                        ),
-                        maxLines: 2,
-                        validator: (v) {
-                          if (!_submitted) return null;
-                          if (v == null || v.trim().isEmpty) return 'La description est requise';
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        value: _category,
-                        decoration: const InputDecoration(
-                          labelText: 'Catégorie',
-                          prefixIcon: Icon(Icons.category),
-                        ),
-                        items: _categories
-                            .map(
-                              (c) => DropdownMenuItem(
-                                value: c,
-                                child: Text(c),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (v) => setState(() => _category = v ?? _category),
+                // SECTION INFORMATIONS
+                _buildSectionHeader(
+                  icon: Icons.info_outline,
+                  title: 'Informations générales',
+                  subtitle: 'Définissez les détails de votre modèle',
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(height: 16),
-                _sectionCard(
-                  title: 'Articles / Services',
-                  trailing: ElevatedButton.icon(
-                    onPressed: () => _addOrEditItem(),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Ajouter'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.yellow,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                  child: _items.isEmpty
-                      ? Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[100],
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Row(
-                            children: [
-                              Icon(Icons.info_outline, color: Colors.grey),
-                              SizedBox(width: 10),
-                              Expanded(
-                                child: Text('Ajoutez au moins un article pour ce modèle.'),
-                              ),
-                            ],
-                          ),
-                        )
-                      : Column(
-                          children: [
-                            for (int i = 0; i < _items.length; i++) ...[
-                              _itemTile(
-                                index: i,
-                                item: _items[i],
-                              ),
-                              if (i != _items.length - 1) const Divider(height: 1),
-                            ],
-                          ],
-                        ),
-                ),
-                const SizedBox(height: 16),
-                _sectionCard(
-                  title: 'Options (facultatif)',
+                  padding: const EdgeInsets.all(20),
                   child: Column(
                     children: [
-                      TextFormField(
-                        controller: _validityCtrl,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Validité (jours)',
-                          hintText: 'Ex: 30',
-                          prefixIcon: Icon(Icons.calendar_today),
-                        ),
+                      _buildTextField(
+                        controller: _nameCtrl,
+                        label: 'Nom du modèle',
+                        hint: 'Ex: Devis type construction',
+                        icon: Icons.edit_note,
+                        validator: (v) => (v == null || v.trim().isEmpty) ? 'Champ requis' : null,
                       ),
-                      const SizedBox(height: 12),
-                      TextFormField(
+                      const SizedBox(height: 16),
+                      _buildTextField(
+                        controller: _descCtrl,
+                        label: 'Description',
+                        hint: 'Décrivez brièvement ce modèle',
+                        icon: Icons.description_outlined,
+                        maxLines: 2,
+                        validator: (v) => (v == null || v.trim().isEmpty) ? 'Champ requis' : null,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildCategoryDropdown(),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 32),
+
+                // SECTION ARTICLES
+                _buildSectionHeader(
+                  icon: Icons.inventory_2_outlined,
+                  title: 'Articles / Services',
+                  subtitle: 'Ajoutez les lignes de votre devis',
+                ),
+                const SizedBox(height: 12),
+                
+                if (_items.isEmpty)
+                  _buildEmptyState()
+                else
+                  ..._items.asMap().entries.map((entry) => _buildItemCard(entry.key, entry.value)),
+
+                const SizedBox(height: 16),
+                _buildAddItemButton(),
+
+                const SizedBox(height: 32),
+
+                // SECTION OPTIONS
+                _buildSectionHeader(
+                  icon: Icons.tune,
+                  title: 'Options supplémentaires',
+                  subtitle: 'Paramètres avancés (optionnel)',
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      _buildTextField(
+                        controller: _validityCtrl,
+                        label: 'Validité (jours)',
+                        hint: '30',
+                        icon: Icons.calendar_today_outlined,
+                        keyboardType: TextInputType.number,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildTextField(
                         controller: _notesCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Notes',
-                          hintText: 'Notes affichées sur le devis',
-                          prefixIcon: Icon(Icons.note),
-                        ),
+                        label: 'Notes par défaut',
+                        hint: 'Informations complémentaires',
+                        icon: Icons.note_outlined,
                         maxLines: 3,
                       ),
-                      const SizedBox(height: 12),
-                      TextFormField(
+                      const SizedBox(height: 16),
+                      _buildTextField(
                         controller: _termsCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Conditions générales',
-                          hintText: 'Conditions par défaut',
-                          prefixIcon: Icon(Icons.gavel),
-                        ),
-                        maxLines: 4,
+                        label: 'Conditions générales',
+                        hint: 'Termes et conditions',
+                        icon: Icons.gavel_outlined,
+                        maxLines: 3,
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
-                BlocBuilder<TemplateBloc, TemplateState>(
-                  builder: (context, state) {
-                    final loading = state is TemplateLoading;
-                    return ElevatedButton.icon(
-                      onPressed: loading ? null : _submit,
-                      icon: loading
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.check),
-                      label: Text(loading ? 'Enregistrement...' : 'Enregistrer le modèle'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.yellow,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+
+                const SizedBox(height: 32),
+
+                // BOUTON PRINCIPAL
+                Container(
+                  height: 56,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [AppColors.yellow, AppColors.yellow.withOpacity(0.8)],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.yellow.withOpacity(0.3),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
                       ),
-                    );
-                  },
+                    ],
+                  ),
+                  child: ElevatedButton(
+                    onPressed: _submit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.save_outlined, color: Colors.white),
+                        SizedBox(width: 12),
+                        Text(
+                          'ENREGISTRER LE MODÈLE',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: Colors.white,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
+                const SizedBox(height: 40),
               ],
             ),
           ),
@@ -378,65 +401,350 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     );
   }
 
-  Widget _itemTile({required int index, required _EditableTemplateItem item}) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      title: Text(item.productName, style: const TextStyle(fontWeight: FontWeight.w700)),
-      subtitle: Text(
-        '${item.quantity} ${item.unit ?? ''} × ${item.unitPrice.toStringAsFixed(0)} FCFA • TVA ${(item.vatRate * 100).toStringAsFixed(0)}%',
-      ),
-      trailing: Wrap(
-        spacing: 6,
-        children: [
-          IconButton(
-            tooltip: 'Modifier',
-            icon: const Icon(Icons.edit_outlined),
-            onPressed: () => _addOrEditItem(existing: item, index: index),
+  Widget _buildSectionHeader({required IconData icon, required String title, required String subtitle}) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: AppColors.yellow.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
           ),
-          IconButton(
-            tooltip: 'Supprimer',
-            icon: const Icon(Icons.delete_outline, color: Colors.red),
-            onPressed: () => _deleteItem(index),
+          child: Icon(icon, color: AppColors.yellow, size: 24),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
+                ),
+              ),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    String? hint,
+    int maxLines = 1,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      maxLines: maxLines,
+      keyboardType: keyboardType,
+      validator: validator,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        prefixIcon: Icon(icon, color: AppColors.yellow),
+        filled: true,
+        fillColor: Colors.grey[50],
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: AppColors.yellow, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.red),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      ),
+    );
+  }
+
+  Widget _buildCategoryDropdown() {
+    return DropdownButtonFormField<String>(
+      value: _category,
+      decoration: InputDecoration(
+        labelText: 'Catégorie',
+        prefixIcon: Icon(Icons.category_outlined, color: AppColors.yellow),
+        filled: true,
+        fillColor: Colors.grey[50],
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: AppColors.yellow, width: 2),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      ),
+      items: _categories.map((c) {
+        return DropdownMenuItem(
+          value: c,
+          child: Text(c),
+        );
+      }).toList(),
+      onChanged: (v) => setState(() => _category = v!),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Container(
+      padding: const EdgeInsets.all(40),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.inventory_2_outlined, size: 48, color: Colors.grey[400]),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Aucun article ajouté',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[700],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Commencez par ajouter des articles à votre modèle',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[500],
+            ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),
     );
   }
 
-  Widget _sectionCard({
-    required String title,
-    required Widget child,
-    Widget? trailing,
-  }) {
-    return Card(
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildAddItemButton() {
+    return InkWell(
+      onTap: () => _addOrEditItem(),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.yellow, width: 2, style: BorderStyle.solid),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    title,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-                  ),
-                ),
-                if (trailing != null) trailing,
-              ],
+            Icon(Icons.add_circle_outline, color: AppColors.yellow),
+            const SizedBox(width: 8),
+            Text(
+              'Ajouter un article',
+              style: TextStyle(
+                color: AppColors.yellow,
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+              ),
             ),
-            const SizedBox(height: 12),
-            child,
           ],
         ),
       ),
     );
   }
+
+  Widget _buildItemCard(int index, _EditableTemplateItem item) {
+    final total = item.quantity * item.unitPrice;
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => _addOrEditItem(existing: item, index: index),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.yellow.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '#${index + 1}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.yellow,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.productName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          if (item.description.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              item.description,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey[600],
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 20),
+                      onPressed: () => _deleteItem(index),
+                      color: Colors.red[400],
+                      tooltip: 'Supprimer',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _buildInfoChip(
+                          icon: Icons.tag,
+                          label: 'Quantité',
+                          value: '${item.quantity} ${item.unit ?? ''}',
+                        ),
+                      ),
+                      Container(width: 1, height: 30, color: Colors.grey[300]),
+                      Expanded(
+                        child: _buildInfoChip(
+                          icon: Icons.payments_outlined,
+                          label: 'Prix unit.',
+                          value: '${item.unitPrice.toStringAsFixed(0)} FCFA',
+                        ),
+                      ),
+                      Container(width: 1, height: 30, color: Colors.grey[300]),
+                      Expanded(
+                        child: _buildInfoChip(
+                          icon: Icons.calculate_outlined,
+                          label: 'Total',
+                          value: '${total.toStringAsFixed(0)} FCFA',
+                          isHighlighted: true,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoChip({
+    required IconData icon,
+    required String label,
+    required String value,
+    bool isHighlighted = false,
+  }) {
+    return Column(
+      children: [
+        Icon(icon, size: 16, color: isHighlighted ? AppColors.yellow : Colors.grey[600]),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: Colors.grey[600],
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: isHighlighted ? FontWeight.bold : FontWeight.w600,
+            color: isHighlighted ? AppColors.yellow : Colors.grey[800],
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
 }
 
 class _EditableTemplateItem {
+  final String productName;
+  final String description;
+  final int quantity;
+  final double unitPrice;
+  final double vatRate;
+  final String? unit;
+
   const _EditableTemplateItem({
     required this.productName,
     required this.description,
@@ -445,19 +753,11 @@ class _EditableTemplateItem {
     required this.vatRate,
     this.unit,
   });
-
-  final String productName;
-  final String description;
-  final int quantity;
-  final double unitPrice;
-  final double vatRate;
-  final String? unit;
 }
 
 class _TemplateItemDialog extends StatefulWidget {
-  const _TemplateItemDialog({required this.initial});
-
   final _EditableTemplateItem? initial;
+  const _TemplateItemDialog({this.initial});
 
   @override
   State<_TemplateItemDialog> createState() => _TemplateItemDialogState();
@@ -465,13 +765,12 @@ class _TemplateItemDialog extends StatefulWidget {
 
 class _TemplateItemDialogState extends State<_TemplateItemDialog> {
   final _formKey = GlobalKey<FormState>();
-
-  late final TextEditingController _nameCtrl;
-  late final TextEditingController _descCtrl;
-  late final TextEditingController _qtyCtrl;
-  late final TextEditingController _priceCtrl;
-  late final TextEditingController _vatCtrl;
-  late final TextEditingController _unitCtrl;
+  late TextEditingController _nameCtrl;
+  late TextEditingController _descCtrl;
+  late TextEditingController _qtyCtrl;
+  late TextEditingController _priceCtrl;
+  late TextEditingController _vatCtrl;
+  late TextEditingController _unitCtrl;
 
   @override
   void initState() {
@@ -496,124 +795,203 @@ class _TemplateItemDialogState extends State<_TemplateItemDialog> {
     super.dispose();
   }
 
-  void _save() {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
-
-    final qty = int.tryParse(_qtyCtrl.text.trim()) ?? 1;
-    final unitPrice = double.tryParse(_priceCtrl.text.trim().replaceAll(',', '.')) ?? 0;
-    final vatPercent = double.tryParse(_vatCtrl.text.trim().replaceAll(',', '.')) ?? 0;
-    final vatRate = vatPercent / 100.0;
-
-    Navigator.pop(
-      context,
-      _EditableTemplateItem(
-        productName: _nameCtrl.text.trim(),
-        description: _descCtrl.text.trim(),
-        quantity: qty,
-        unitPrice: unitPrice,
-        vatRate: vatRate,
-        unit: _unitCtrl.text.trim(),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(widget.initial == null ? 'Ajouter un article' : 'Modifier l’article'),
-      content: Form(
-        key: _formKey,
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 500),
         child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: _nameCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Désignation *',
-                  hintText: 'Ex: Installation, Prestation...',
-                ),
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Requis';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 10),
-              TextFormField(
-                controller: _descCtrl,
-                decoration: const InputDecoration(labelText: 'Description'),
-                maxLines: 2,
-              ),
-              const SizedBox(height: 10),
-              Row(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _qtyCtrl,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Qté *'),
-                      validator: (v) {
-                        final n = int.tryParse((v ?? '').trim());
-                        if (n == null || n <= 0) return '>= 1';
-                        return null;
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _priceCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      decoration: const InputDecoration(labelText: 'PU (FCFA) *'),
-                      validator: (v) {
-                        final n = double.tryParse((v ?? '').trim().replaceAll(',', '.'));
-                        if (n == null || n < 0) return 'Invalide';
-                        return null;
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _vatCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      decoration: const InputDecoration(labelText: 'TVA (%)'),
-                      validator: (v) {
-                        final n = double.tryParse((v ?? '').trim().replaceAll(',', '.'));
-                        if (n == null || n < 0 || n > 100) return '0-100';
-                        return null;
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _unitCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Unité',
-                        hintText: 'Ex: m², kg...',
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.yellow.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          widget.initial == null ? Icons.add_shopping_cart : Icons.edit,
+                          color: AppColors.yellow,
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.initial == null ? 'Nouvel article' : 'Modifier l\'article',
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              'Remplissez les informations',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  _buildDialogTextField(
+                    controller: _nameCtrl,
+                    label: 'Désignation *',
+                    icon: Icons.shopping_bag_outlined,
+                    validator: (v) => (v == null || v.isEmpty) ? 'Champ requis' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildDialogTextField(
+                    controller: _descCtrl,
+                    label: 'Description',
+                    icon: Icons.description_outlined,
+                    maxLines: 2,
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildDialogTextField(
+                          controller: _qtyCtrl,
+                          label: 'Quantité',
+                          icon: Icons.tag,
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildDialogTextField(
+                          controller: _unitCtrl,
+                          label: 'Unité',
+                          icon: Icons.square_foot,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildDialogTextField(
+                          controller: _priceCtrl,
+                          label: 'Prix unitaire',
+                          icon: Icons.payments_outlined,
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildDialogTextField(
+                          controller: _vatCtrl,
+                          label: 'TVA (%)',
+                          icon: Icons.percent,
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        ),
+                        child: const Text('Annuler'),
+                      ),
+                      const SizedBox(width: 12),
+                      ElevatedButton(
+                        onPressed: () {
+                          if (_formKey.currentState!.validate()) {
+                            Navigator.pop(
+                              context,
+                              _EditableTemplateItem(
+                                productName: _nameCtrl.text,
+                                description: _descCtrl.text,
+                                quantity: int.tryParse(_qtyCtrl.text) ?? 1,
+                                unitPrice: double.tryParse(_priceCtrl.text) ?? 0,
+                                vatRate: (double.tryParse(_vatCtrl.text) ?? 0) / 100,
+                                unit: _unitCtrl.text,
+                              ),
+                            );
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.yellow,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          'Confirmer',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
+            ),
           ),
         ),
       ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annuler')),
-        ElevatedButton(
-          onPressed: _save,
-          style: ElevatedButton.styleFrom(backgroundColor: AppColors.yellow, foregroundColor: Colors.white),
-          child: const Text('OK'),
+    );
+  }
+
+  Widget _buildDialogTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    int maxLines = 1,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      maxLines: maxLines,
+      keyboardType: keyboardType,
+      validator: validator,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: AppColors.yellow, size: 20),
+        filled: true,
+        fillColor: Colors.grey[50],
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
         ),
-      ],
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: AppColors.yellow, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.red),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      ),
     );
   }
 }
-

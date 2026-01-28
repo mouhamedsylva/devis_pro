@@ -25,35 +25,15 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   int _selectedIndex = 0;
-  bool _isOnline = true;
-  final ConnectivityService _connectivityService = ConnectivityService();
 
   @override
   void initState() {
     super.initState();
     context.read<DashboardBloc>().add(LoadDashboardData());
-
-    _connectivityService.startMonitoring();
-    _connectivityService.connectionStatus.listen((isConnected) {
-      if (mounted) {
-        setState(() {
-          _isOnline = isConnected;
-        });
-      }
-    });
-
-    _connectivityService.checkConnection().then((isConnected) {
-      if (mounted) {
-        setState(() {
-          _isOnline = isConnected;
-        });
-      }
-    });
   }
 
   @override
   void dispose() {
-    _connectivityService.stopMonitoring();
     super.dispose();
   }
 
@@ -320,24 +300,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(child: _buildStatCard(icon: Icons.people_rounded, value: state.totalClients.toString(), label: 'Clients', useGradient: _isOnline)),
+              Expanded(child: _buildStatCard(icon: Icons.people_rounded, value: state.totalClients.toString(), label: 'Clients')),
               const SizedBox(width: 12),
-              Expanded(child: _buildStatCard(icon: Icons.inventory_2_rounded, value: state.totalProducts.toString(), label: 'Produits', useGradient: _isOnline)),
+              Expanded(child: _buildStatCard(icon: Icons.inventory_2_rounded, value: state.totalProducts.toString(), label: 'Produits')),
             ],
           ),
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _buildStatCard(icon: Icons.receipt_long_rounded, value: state.totalQuotes.toString(), label: 'Devis total', useGradient: _isOnline)),
+              Expanded(child: _buildStatCard(icon: Icons.receipt_long_rounded, value: state.totalQuotes.toString(), label: 'Devis total')),
               const SizedBox(width: 12),
               Expanded(
                 child: _buildStatCard(
                   icon: Icons.note_add_rounded,
                   value: state.totalTemplates.toString(),
                   label: 'Modèles',
-                  useGradient: !_isOnline,
-                  backgroundColor: !_isOnline ? Colors.blue : Colors.white,
-                  showBadge: !_isOnline,
                   badgeText: 'LOCAL',
                 ),
               ),
@@ -353,26 +330,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required String value,
     required String label,
     bool showBadge = false,
-    bool useGradient = false,
     Color? backgroundColor,
     String? badgeText,
   }) {
-    final effectiveContentColor = useGradient ? Colors.white : const Color(0xFF1A1A1A);
-    final effectiveSubColor = useGradient ? Colors.white70 : const Color(0xFF666666);
+    final effectiveContentColor = backgroundColor == Colors.blue ? Colors.white : const Color(0xFF1A1A1A);
+    final effectiveSubColor = backgroundColor == Colors.blue ? Colors.white70 : const Color(0xFF666666);
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: useGradient
-            ? LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: backgroundColor == Colors.blue
-                    ? [Colors.blue, Colors.blueAccent]
-                    : [AppColors.yellow, const Color(0xFFFFD700)],
-              )
-            : null,
-        color: useGradient ? null : (backgroundColor ?? Colors.white),
+        color: backgroundColor ?? Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
       ),
@@ -383,8 +350,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               Container(
                 padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: useGradient ? Colors.white.withOpacity(0.2) : AppColors.yellow.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-                child: Icon(icon, color: useGradient ? Colors.white : AppColors.yellow, size: 22),
+                decoration: BoxDecoration(
+                  color: backgroundColor == Colors.blue ? Colors.white.withOpacity(0.2) : AppColors.yellow.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12)
+                ),
+                child: Icon(icon, color: backgroundColor == Colors.blue ? Colors.white : AppColors.yellow, size: 22),
               ),
               if (showBadge) ...[
                 const Spacer(),
@@ -465,7 +435,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Activité récente', style: TextStyle(color: Color(0xFF1A1A1A), fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+              const Text('Activités récentes', style: TextStyle(color: Color(0xFF1A1A1A), fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
               TextButton(
                 onPressed: () {
                   Navigator.push(

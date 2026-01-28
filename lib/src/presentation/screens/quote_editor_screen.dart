@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/formatters.dart';
@@ -19,6 +20,7 @@ import '../widgets/success_dialog.dart';
 import '../../domain/repositories/company_repository.dart';
 import 'package:devis_pro/src/presentation/widgets/custom_connectivity_banner.dart';
 import '../widgets/confirmation_dialog.dart';
+import '../services/quote_pdf_service.dart'; // NOUVEAU
 
 class QuoteEditorScreen extends StatefulWidget {
   const QuoteEditorScreen({super.key});
@@ -139,6 +141,23 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
     return BlocListener<QuoteBloc, QuoteState>(
       listener: (context, state) async {
         if (state.status == QuoteStatus.success && state.createdQuote != null) {
+          // ✨ OPTIMISATION : Démarrer la génération du PDF en arrière-plan dès le succès
+          final companyRepo = context.read<CompanyRepository>();
+          final quoteRepo = context.read<QuoteRepository>();
+          final pdfService = QuotePdfService();
+          
+          final company = await companyRepo.getCompany();
+          final items = await quoteRepo.listItems(state.createdQuote!.id);
+          
+          // Lancer la génération pendant que l'utilisateur voit le modal de succès
+          final pdfFuture = pdfService.buildPdf(
+            company: company,
+            quote: state.createdQuote!,
+            items: items,
+          );
+
+          if (!mounted) return;
+
           // 1. Afficher le modal de succès style SweetAlert
           await showDialog(
             context: context,
@@ -151,29 +170,24 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
             ),
           );
 
-          // 2. Charger les données pour l'aperçu
-          final companyRepo = context.read<CompanyRepository>();
-          final company = await companyRepo.getCompany();
-          
-          if (!mounted) return;
-          
-          final quoteRepo = context.read<QuoteRepository>();
-          final items = await quoteRepo.listItems(state.createdQuote!.id);
+          // Attendre que le PDF soit fini (souvent déjà fait à ce stade)
+          final pdfBytes = await pdfFuture;
 
           if (!mounted) return;
 
-          // 3. Afficher l'aperçu
+          // 3. Afficher l'aperçu INSTANTANÉMENT avec les octets
           await showDialog(
             context: context,
             builder: (_) => QuotePreviewDialog(
               quote: state.createdQuote!,
               items: items,
               company: company,
+              pdfBytes: pdfBytes, // ✨ PASSAGE DIRECT DES OCTETS
             ),
           );
           
           if (mounted) {
-            Navigator.of(context).pop(); // Fermer l'éditeur après avoir fermé l'aperçu
+            Navigator.of(context).pop();
           }
         }
       },
@@ -974,14 +988,20 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
     // Liste des unités courantes
     final List<String> units = ['Unité', 'm', 'm²', 'm³', 'kg', 'Litre', 'Heure', 'Jour', 'Forfait', 'Sac', 'Voyage'];
     
+    // FocusNode pour gérer le focus automatique
+    final FocusNode searchFocusNode = FocusNode();
+    
     // État local du dialogue
     String selectedUnit = 'Unité';
-    bool isVatEnabled = true; // TVA activée par défaut
+    bool isVatEnabled = true;
     Product? selectedProduct;
     final nameCtrl = TextEditingController();
     final priceCtrl = TextEditingController();
     final vatCtrl = TextEditingController(text: '18');
     final qtyCtrl = TextEditingController(text: '1');
+    
+    // Compteur d'articles ajoutés
+    int articleCount = 0;
     
     // Pour les calculs en temps réel
     double lineHT = 0;
@@ -1000,7 +1020,71 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
       });
     }
 
-    final result = await showModalBottomSheet<Map<String, dynamic>>(
+    // Fonction pour vider les champs après ajout
+    void resetFields(StateSetter setDialogState) {
+      setDialogState(() {
+        nameCtrl.clear();
+        priceCtrl.clear();
+        qtyCtrl.text = '1';
+        // On garde selectedUnit, vatCtrl et isVatEnabled
+        lineHT = 0;
+        lineVAT = 0;
+        lineTTC = 0;
+      });
+      // Focus automatique sur le champ de recherche
+      searchFocusNode.requestFocus();
+    }
+
+    // Fonction pour ajouter l'article sans fermer le modal
+    void addArticle(StateSetter setDialogState, {bool closeAfter = false}) {
+      if (nameCtrl.text.trim().isEmpty) {
+        // Feedback haptique si champ vide
+        HapticFeedback.mediumImpact();
+        return;
+      }
+      
+      final name = nameCtrl.text.trim();
+      final price = double.tryParse(priceCtrl.text.replaceAll(',', '.')) ?? 0;
+      final vat = isVatEnabled ? ((double.tryParse(vatCtrl.text.replaceAll(',', '.')) ?? 18) / 100) : 0.0;
+      final unit = selectedUnit;
+      final qty = double.tryParse(qtyCtrl.text.replaceAll(',', '.')) ?? 1;
+
+      // Si c'est un nouveau produit, on le sauvegarde
+      final isExisting = _products.any((p) => p.name.toLowerCase() == name.toLowerCase());
+      if (!isExisting) {
+        final productRepo = context.read<ProductRepository>();
+        productRepo.create(name: name, unitPrice: price, vatRate: vat, unit: unit).then((_) => _loadProducts());
+      }
+
+      // Ajouter l'article à la liste principale
+      setState(() {
+        _lines.add(_Line(
+          name: name,
+          unitPrice: price,
+          vatRate: vat,
+          quantity: qty,
+          unit: unit,
+        ));
+      });
+
+      // Feedback haptique de succès
+      HapticFeedback.lightImpact();
+
+      // Incrémenter le compteur
+      setDialogState(() {
+        articleCount++;
+      });
+
+      if (closeAfter) {
+        // Fermer le modal
+        Navigator.pop(context);
+      } else {
+        // Vider les champs et continuer
+        resetFields(setDialogState);
+      }
+    }
+
+    await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -1029,34 +1113,68 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
                   ),
                 ),
                 
-                // Header
+                // Header avec compteur
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  child: Row(
+                  child: Column(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: AppColors.yellow.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(Icons.add_shopping_cart, color: AppColors.yellow),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: AppColors.yellow.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(Icons.add_shopping_cart, color: AppColors.yellow),
+                          ),
+                          const SizedBox(width: 16),
+                          const Expanded(
+                            child: Text(
+                              'Nouvel Article',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF2D2D2D),
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.pop(sheetContext),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 16),
-                      const Expanded(
-                        child: Text(
-                          'Nouvel Article',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w900,
-                            color: Color(0xFF2D2D2D),
+                      
+                      // Compteur d'articles ajoutés avec animation
+                      if (articleCount > 0) ...[
+                        const SizedBox(height: 12),
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeOut,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade50,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.green.shade200, width: 2),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.check_circle, color: Colors.green.shade600, size: 20),
+                              const SizedBox(width: 8),
+                              Text(
+                                '✓ $articleCount article${articleCount > 1 ? 's' : ''} ajouté${articleCount > 1 ? 's' : ''}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                  color: Colors.green.shade700,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(sheetContext),
-                      ),
+                      ],
                     ],
                   ),
                 ),
@@ -1091,7 +1209,7 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
                           },
                           fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
                             if (nameCtrl.text.isNotEmpty && controller.text.isEmpty) {
-                               controller.text = nameCtrl.text;
+                              controller.text = nameCtrl.text;
                             }
                             controller.addListener(() {
                               nameCtrl.text = controller.text;
@@ -1099,7 +1217,7 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
                             
                             return TextField(
                               controller: controller,
-                              focusNode: focusNode,
+                              focusNode: searchFocusNode,
                               decoration: InputDecoration(
                                 hintText: 'Rechercher ou saisir un nom...',
                                 filled: true,
@@ -1180,10 +1298,11 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
                                     controller: priceCtrl,
                                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                     decoration: InputDecoration(
+                                      hintText: '0.00',
+                                      suffixText: 'CFA',
                                       filled: true,
                                       fillColor: const Color(0xFFF8F9FA),
                                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                                      suffixText: 'CFA',
                                       prefixIcon: const Icon(Icons.payments_outlined, size: 20),
                                     ),
                                     onChanged: (_) => updateTotals(setDialogState),
@@ -1255,10 +1374,10 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Text('TOTAL TTC', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+                                  const Text('TOTAL TTC ARTICLE', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14)),
                                   Text(
                                     Formatters.moneyCfa(lineTTC),
-                                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: AppColors.yellow),
+                                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppColors.yellow),
                                   ),
                                 ],
                               ),
@@ -1271,29 +1390,49 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
                   ),
                 ),
 
-                // Bouton Valider
+                // Boutons modifiés pour le mode série
                 Padding(
                   padding: const EdgeInsets.all(24),
-                  child: ElevatedButton(
-                    onPressed: () {
-                      if (nameCtrl.text.trim().isEmpty) return;
-                      
-                      Navigator.pop(sheetContext, {
-                        'name': nameCtrl.text.trim(),
-                        'price': double.tryParse(priceCtrl.text.replaceAll(',', '.')) ?? 0,
-                        'vat': isVatEnabled ? ((double.tryParse(vatCtrl.text.replaceAll(',', '.')) ?? 18) / 100) : 0.0,
-                        'unit': selectedUnit,
-                        'quantity': double.tryParse(qtyCtrl.text.replaceAll(',', '.')) ?? 1,
-                      });
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.yellow,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(double.infinity, 56),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      elevation: 0,
-                    ),
-                    child: const Text('AJOUTER AU DEVIS', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                  child: Row(
+                    children: [
+                      // Bouton "Terminer" (visible seulement après le premier ajout)
+                      if (articleCount > 0) ...[
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(sheetContext),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.grey[700],
+                              side: BorderSide(color: Colors.grey[300]!),
+                              minimumSize: const Size(0, 56),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            ),
+                            child: const Text(
+                              'TERMINER',
+                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+                      // Bouton "Ajouter"
+                      Expanded(
+                        flex: articleCount > 0 ? 2 : 1,
+                        child: ElevatedButton(
+                          onPressed: () => addArticle(setDialogState, closeAfter: false),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.yellow,
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size(0, 56),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            elevation: 0,
+                          ),
+                          child: Text(
+                            articleCount > 0 ? 'AJOUTER ' : 'AJOUTER AU DEVIS',
+                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -1302,31 +1441,6 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
         }
       ),
     );
-
-    if (result != null) {
-      final name = result['name'] as String;
-      final price = result['price'] as double;
-      final vat = result['vat'] as double;
-      final unit = result['unit'] as String;
-      final qty = result['quantity'] as double;
-
-      // Si c'est un nouveau produit, on le sauvegarde pour la prochaine fois
-      final isExisting = _products.any((p) => p.name.toLowerCase() == name.toLowerCase());
-      if (!isExisting) {
-        final productRepo = context.read<ProductRepository>();
-        productRepo.create(name: name, unitPrice: price, vatRate: vat, unit: unit).then((_) => _loadProducts());
-      }
-
-      setState(() {
-        _lines.add(_Line(
-          name: name,
-          unitPrice: price,
-          vatRate: vat,
-          quantity: qty,
-          unit: unit,
-        ));
-      });
-    }
   }
 
   Widget _buildCalculationRow(String label, double amount) {

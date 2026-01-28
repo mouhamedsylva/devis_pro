@@ -148,11 +148,21 @@ class TemplateRepositoryImpl implements TemplateRepository {
 
   @override
   Future<void> deleteTemplate(int id) async {
-    await _db.database.delete(
-      'templates',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    await _db.database.transaction((txn) async {
+      // Supprimer les items associés en premier
+      await txn.delete(
+        'template_items',
+        where: 'templateId = ?',
+        whereArgs: [id],
+      );
+
+      // Ensuite, supprimer le template lui-même
+      await txn.delete(
+        'templates',
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+    });
   }
 
   @override

@@ -1,7 +1,4 @@
 /// DevisPro – Génération de devis (FCFA), offline-first, Clean Architecture + BLoC.
-///
-/// Entry point: instancie la DB locale SQLite et injecte les repositories/blocs.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sizer/sizer.dart';
@@ -37,7 +34,6 @@ import 'src/presentation/screens/auth_gate.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   final db = await AppDatabase.open();
 
   runApp(
