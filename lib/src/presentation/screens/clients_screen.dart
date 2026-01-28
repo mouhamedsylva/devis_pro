@@ -394,7 +394,8 @@ class _ClientsScreenState extends State<ClientsScreen> {
         elevation: 0,
         backgroundColor: Colors.transparent,
         child: Container(
-          constraints: const BoxConstraints(maxWidth: 400),
+          // Retrait de maxWidth pour laisser Flutter gérer ou utilisation de MediaQuery
+          width: MediaQuery.of(context).size.width * 0.9,
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(24),
@@ -411,7 +412,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
             children: [
               // Header
               Container(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(20), // Réduction padding
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [AppColors.yellow, AppColors.yellow.withOpacity(0.8)],
@@ -426,7 +427,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
                 child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(10), // Réduction padding
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(12),
@@ -434,15 +435,15 @@ class _ClientsScreenState extends State<ClientsScreen> {
                       child: Icon(
                         existing == null ? Icons.person_add_rounded : Icons.edit_rounded,
                         color: Colors.white,
-                        size: 24,
+                        size: 22,
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         existing == null ? 'Nouveau client' : 'Modifier client',
                         style: const TextStyle(
-                          fontSize: 20,
+                          fontSize: 18, // Réduction taille
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),
@@ -450,7 +451,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
                     ),
                     IconButton(
                       onPressed: () => Navigator.pop(dialogContext, false),
-                      icon: const Icon(Icons.close_rounded, color: Colors.white),
+                      icon: const Icon(Icons.close_rounded, color: Colors.white, size: 20),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                     ),
@@ -459,64 +460,67 @@ class _ClientsScreenState extends State<ClientsScreen> {
               ),
 
               // Content
-              SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Nom
-                      _buildInputField(
-                        controller: nameCtrl,
-                        label: 'Nom complet',
-                        hint: 'Ex: Amadou Diallo',
-                        icon: Icons.person_outline_rounded,
-                        validator: _validateName,
-                        textCapitalization: TextCapitalization.words,
-                      ),
-                      const SizedBox(height: 20),
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16), // Réduction padding
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min, // Important
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Nom
+                        _buildInputField(
+                          controller: nameCtrl,
+                          label: 'Nom complet',
+                          hint: 'Ex: Amadou Diallo',
+                          icon: Icons.person_outline_rounded,
+                          validator: _validateName,
+                          textCapitalization: TextCapitalization.words,
+                        ),
+                        const SizedBox(height: 16), // Réduction espace
 
-                      // Téléphone
-                      _buildInputField(
-                        controller: phoneCtrl,
-                        label: 'Téléphone',
-                        hint: '77 123 45 67',
-                        icon: Icons.phone_android_rounded,
-                        keyboardType: TextInputType.phone,
-                        validator: _validatePhone,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                          LengthLimitingTextInputFormatter(9),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
+                        // Téléphone
+                        _buildInputField(
+                          controller: phoneCtrl,
+                          label: 'Téléphone',
+                          hint: '77 123 45 67',
+                          icon: Icons.phone_android_rounded,
+                          keyboardType: TextInputType.phone,
+                          validator: _validatePhone,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(9),
+                          ],
+                        ),
+                        const SizedBox(height: 16), // Réduction espace
 
-                      // Adresse
-                      _buildInputField(
-                        controller: addressCtrl,
-                        label: 'Adresse (optionnel)',
-                        hint: 'Ex: Pikine, Dakar',
-                        icon: Icons.location_on_outlined,
-                        maxLines: 3,
-                        validator: _validateAddress,
-                        textCapitalization: TextCapitalization.sentences,
-                      ),
-                    ],
+                        // Adresse
+                        _buildInputField(
+                          controller: addressCtrl,
+                          label: 'Adresse (optionnel)',
+                          hint: 'Ex: Pikine, Dakar',
+                          icon: Icons.location_on_outlined,
+                          maxLines: 2, // Réduction maxLines
+                          validator: _validateAddress,
+                          textCapitalization: TextCapitalization.sentences,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
 
               // Actions
               Container(
-                padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                padding: const EdgeInsets.all(20), // Réduction padding
                 child: Row(
                   children: [
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () => Navigator.pop(dialogContext, false),
                         style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          padding: const EdgeInsets.symmetric(vertical: 12), // Réduction padding
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -526,13 +530,13 @@ class _ClientsScreenState extends State<ClientsScreen> {
                         child: const Text(
                           'Annuler',
                           style: TextStyle(
-                            fontSize: 16,
+                            fontSize: 14, // Réduction taille
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     Expanded(
                       flex: 2,
                       child: ElevatedButton(
@@ -542,7 +546,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
                           }
                         },
                         style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          padding: const EdgeInsets.symmetric(vertical: 12), // Réduction padding
                           backgroundColor: AppColors.yellow,
                           foregroundColor: Colors.white,
                           elevation: 0,
@@ -553,12 +557,12 @@ class _ClientsScreenState extends State<ClientsScreen> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: const [
-                            Icon(Icons.check_circle_outline_rounded, size: 20),
-                            SizedBox(width: 8),
+                            Icon(Icons.check_circle_outline_rounded, size: 18),
+                            SizedBox(width: 6),
                             Text(
                               'Enregistrer',
                               style: TextStyle(
-                                fontSize: 16,
+                                fontSize: 14, // Réduction taille
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -603,81 +607,41 @@ class _ClientsScreenState extends State<ClientsScreen> {
     if (value == null || value.trim().isEmpty) {
       return 'Le nom est requis';
     }
-    
     final trimmed = value.trim();
-    
-    // Vérifier la longueur minimale
     if (trimmed.length < 2) {
-      return 'Le nom doit contenir au moins 2 caractères';
+      return 'Minimum 2 caractères';
     }
-    
-    // Vérifier la longueur maximale
     if (trimmed.length > 50) {
-      return 'Le nom ne peut pas dépasser 50 caractères';
+      return 'Maximum 50 caractères';
     }
-    
-    // Vérifier les caractères valides (lettres, espaces, tirets, apostrophes)
     final nameRegex = RegExp(r"^[a-zA-ZÀ-ÿ\s\-']+$");
     if (!nameRegex.hasMatch(trimmed)) {
-      return 'Le nom ne peut contenir que des lettres';
+      return 'Lettres uniquement';
     }
-    
-    // Vérifier qu'il n'y a pas que des espaces
-    if (trimmed.replaceAll(' ', '').isEmpty) {
-      return 'Le nom ne peut pas être vide';
-    }
-    
     return null;
   }
 
   String? _validatePhone(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return 'Le téléphone est requis';
+      return 'Requis';
     }
-    
-    // Nettoyer le numéro (enlever espaces, tirets, etc.)
     final cleaned = value.replaceAll(RegExp(r'[^0-9]'), '');
-    
-    // Vérifier la longueur minimale
     if (cleaned.length < 9) {
-      return 'Le numéro doit contenir au moins 9 chiffres';
+      return '9 chiffres requis';
     }
-    
-    // Vérifier la longueur maximale
-    if (cleaned.length > 13) {
-      return 'Le numéro ne peut pas dépasser 13 chiffres';
-    }
-    
-    // Validation spécifique pour le Sénégal (si nécessaire)
-    // Les numéros sénégalais commencent généralement par 77, 78, 76, 75, 70, 33
     final senegalPrefixes = ['77', '78', '76', '75', '70', '33'];
     final hasValidPrefix = senegalPrefixes.any((prefix) => cleaned.startsWith(prefix));
-    
     if (cleaned.length == 9 && !hasValidPrefix) {
-      return 'Numéro invalide (doit commencer par 77, 78, 76, 75, 70 ou 33)';
+      return 'Préfixe invalide';
     }
-    
     return null;
   }
 
   String? _validateAddress(String? value) {
-    // L'adresse est optionnelle
-    if (value == null || value.trim().isEmpty) {
-      return null;
-    }
-    
+    if (value == null || value.trim().isEmpty) return null;
     final trimmed = value.trim();
-    
-    // Vérifier la longueur minimale si renseignée
-    if (trimmed.length < 3) {
-      return 'L\'adresse doit contenir au moins 3 caractères';
-    }
-    
-    // Vérifier la longueur maximale
-    if (trimmed.length > 200) {
-      return 'L\'adresse ne peut pas dépasser 200 caractères';
-    }
-    
+    if (trimmed.length < 3) return 'Trop court';
+    if (trimmed.length > 200) return 'Trop long';
     return null;
   }
 
@@ -702,7 +666,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
             Text(
               label,
               style: TextStyle(
-                fontSize: 14,
+                fontSize: 13, // Réduction
                 fontWeight: FontWeight.w600,
                 color: Colors.grey.shade700,
               ),
@@ -711,14 +675,14 @@ class _ClientsScreenState extends State<ClientsScreen> {
               Text(
                 ' *',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.bold,
                   color: Colors.red.shade600,
                 ),
               ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6), // Réduction
         TextFormField(
           controller: controller,
           keyboardType: keyboardType,
@@ -726,15 +690,15 @@ class _ClientsScreenState extends State<ClientsScreen> {
           validator: validator,
           textCapitalization: textCapitalization,
           inputFormatters: inputFormatters,
-          style: const TextStyle(fontSize: 16),
+          style: const TextStyle(fontSize: 15), // Réduction
           autovalidateMode: AutovalidateMode.onUserInteraction,
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(color: Colors.grey.shade400),
-            prefixIcon: Icon(icon, color: AppColors.yellow, size: 22),
+            hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+            prefixIcon: Icon(icon, color: AppColors.yellow, size: 20),
             filled: true,
             fillColor: Colors.grey.shade50,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12), // Réduction
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: Colors.grey.shade200),
@@ -756,8 +720,8 @@ class _ClientsScreenState extends State<ClientsScreen> {
               borderSide: const BorderSide(color: Colors.red, width: 2),
             ),
             errorStyle: const TextStyle(
-              fontSize: 12,
-              height: 1.2,
+              fontSize: 11,
+              height: 1.0,
             ),
           ),
         ),

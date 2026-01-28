@@ -7,8 +7,10 @@ import 'package:flutter/services.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../domain/entities/product.dart';
+import '../../domain/entities/client.dart'; // NOUVEAU
 import '../../domain/entities/template.dart';
 import '../../domain/repositories/product_repository.dart';
+import '../../domain/repositories/client_repository.dart'; // NOUVEAU
 import '../../domain/repositories/quote_repository.dart';
 import '../../domain/repositories/template_repository.dart';
 import '../blocs/quotes/quote_bloc.dart';
@@ -20,7 +22,7 @@ import '../widgets/success_dialog.dart';
 import '../../domain/repositories/company_repository.dart';
 import 'package:devis_pro/src/presentation/widgets/custom_connectivity_banner.dart';
 import '../widgets/confirmation_dialog.dart';
-import '../services/quote_pdf_service.dart'; // NOUVEAU
+import '../services/quote_pdf_service.dart';
 
 class QuoteEditorScreen extends StatefulWidget {
   const QuoteEditorScreen({super.key});
@@ -112,11 +114,11 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
           centerTitle: true,
           actions: [
             if (!_loading) ...[
-              IconButton(
-                icon: const Icon(Icons.note_add),
-                tooltip: 'Utiliser un modèle',
-                onPressed: () => _showTemplatesDialog(context),
-              ),
+              // IconButton(
+              //   icon: const Icon(Icons.note_add),
+              //   tooltip: 'Utiliser un modèle',
+              //   onPressed: () => _showTemplatesDialog(context),
+              // ),
               IconButton(
                 icon: const Icon(Icons.info_outline),
                 onPressed: () => _showHelp(context),
@@ -329,11 +331,11 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
         ),
         const SizedBox(height: 12),
         
-        // Bouton pour sélectionner depuis le répertoire
+        // NOUVEAU : Bouton "Choisir Client" au lieu de "Ouvrir Répertoire"
         ElevatedButton.icon(
-          onPressed: () => _selectFromContacts(),
-          icon: const Icon(Icons.contacts, size: 20),
-          label: const Text('Ouvrir Répertoire'),
+          onPressed: () => _showClientPicker(),
+          icon: const Icon(Icons.person_search_rounded, size: 20),
+          label: const Text('Choisir Client'),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.yellow,
             foregroundColor: Colors.white,
@@ -349,231 +351,157 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
     );
   }
 
-  Future<void> _selectFromContacts() async {
-    try {
-      // Demander la permission d'accès aux contacts
-      final permission = await FlutterContacts.requestPermission();
-      if (!permission) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Permission d\'accès aux contacts refusée'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-        return;
-      }
+  /// NOUVEAU : Modal de sélection de client local
+  /// NOUVEAU : Modal de sélection de client local avec recherche
+  Future<void> _showClientPicker() async {
+    final clientRepo = context.read<ClientRepository>();
+    final clients = await clientRepo.list();
 
-      // Récupérer tous les contacts
-      final contacts = await FlutterContacts.getContacts(
-        withProperties: true,
-        withThumbnail: false,
-      );
+    if (!mounted) return;
 
-      if (!mounted) return;
+    final selectedClient = await showModalBottomSheet<Client>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) {
+          // État local pour la recherche
+          final searchController = TextEditingController();
+          List<Client> filteredClients = clients;
 
-      // Afficher un modal bottom sheet de sélection
-      final selectedContact = await showModalBottomSheet<Contact>(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (context) => DraggableScrollableSheet(
-          initialChildSize: 0.75,
-          minChildSize: 0.5,
-          maxChildSize: 0.95,
-          builder: (context, scrollController) {
-            return Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              child: Column(
-                children: [
-                  // Handle de drag
-                  Container(
-                    margin: const EdgeInsets.only(top: 12, bottom: 8),
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(2),
+          return DraggableScrollableSheet(
+            initialChildSize: 0.7,
+            minChildSize: 0.5,
+            maxChildSize: 0.95,
+            builder: (context, scrollController) {
+              return Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: Column(
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.only(top: 12, bottom: 8),
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
                     ),
-                  ),
-                  
-                  // Header
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: AppColors.yellow.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(
-                            Icons.contacts,
-                            color: AppColors.yellow,
-                            size: 24,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        const Expanded(
-                          child: Text(
-                            'Sélectionner un contact',
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                      ],
-                    ),
-                  ),
-                  
-                  const Divider(height: 1),
-                  
-                  // Nombre de contacts
-                  if (contacts.isNotEmpty)
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
                       child: Row(
                         children: [
-                          Text(
-                            '${contacts.length} contact${contacts.length > 1 ? 's' : ''}',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[600],
-                              fontWeight: FontWeight.w500,
-                            ),
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(color: AppColors.yellow.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                            child: Icon(Icons.people_rounded, color: AppColors.yellow),
                           ),
+                          const SizedBox(width: 16),
+                          const Expanded(child: Text('Sélectionner un Client', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
+                          IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
                         ],
                       ),
                     ),
-                  
-                  // Liste des contacts
-                  Expanded(
-                    child: contacts.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.contacts_outlined,
-                                  size: 64,
-                                  color: Colors.grey[400],
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'Aucun contact disponible',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.grey[600],
+                    
+                    // ✨ BARRE DE RECHERCHE
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+                      child: TextField(
+                        controller: searchController,
+                        autofocus: false,
+                        decoration: InputDecoration(
+                          hintText: 'Rechercher un client...',
+                          prefixIcon: const Icon(Icons.search, size: 20),
+                          suffixIcon: searchController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear, size: 20),
+                                  onPressed: () {
+                                    setModalState(() {
+                                      searchController.clear();
+                                      filteredClients = clients;
+                                    });
+                                  },
+                                )
+                              : null,
+                          filled: true,
+                          fillColor: Colors.grey[100],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        ),
+                        onChanged: (value) {
+                          setModalState(() {
+                            if (value.isEmpty) {
+                              filteredClients = clients;
+                            } else {
+                              filteredClients = clients.where((client) {
+                                final searchLower = value.toLowerCase();
+                                return client.name.toLowerCase().contains(searchLower) ||
+                                    client.phone.toLowerCase().contains(searchLower);
+                              }).toList();
+                            }
+                          });
+                        },
+                      ),
+                    ),
+                    
+                    const Divider(height: 1),
+                    Expanded(
+                      child: filteredClients.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.search_off, size: 48, color: Colors.grey[400]),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    searchController.text.isEmpty 
+                                        ? 'Aucun client enregistré' 
+                                        : 'Aucun résultat trouvé',
+                                    style: TextStyle(color: Colors.grey[600], fontSize: 16),
                                   ),
-                                ),
-                              ],
-                            ),
-                          )
-                        : ListView.separated(
-                            controller: scrollController,
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            itemCount: contacts.length,
-                            separatorBuilder: (context, index) => const Divider(height: 1),
-                            itemBuilder: (context, index) {
-                              final contact = contacts[index];
-                              final displayName = contact.displayName.isNotEmpty
-                                  ? contact.displayName
-                                  : '${contact.name.first} ${contact.name.last}'.trim();
-                              
-                              return ListTile(
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
-                                ),
-                                leading: CircleAvatar(
-                                  backgroundColor: AppColors.yellow.withOpacity(0.2),
-                                  child: Text(
-                                    displayName.isNotEmpty 
-                                        ? displayName[0].toUpperCase() 
-                                        : '?',
-                                    style: TextStyle(
-                                      color: AppColors.yellow,
-                                      fontWeight: FontWeight.bold,
+                                ],
+                              ),
+                            )
+                          : ListView.separated(
+                              controller: scrollController,
+                              padding: const EdgeInsets.all(16),
+                              itemCount: filteredClients.length,
+                              separatorBuilder: (_, __) => const Divider(),
+                              itemBuilder: (context, index) {
+                                final client = filteredClients[index];
+                                return ListTile(
+                                  leading: CircleAvatar(
+                                    backgroundColor: AppColors.yellow.withOpacity(0.1),
+                                    child: Text(
+                                      client.name[0].toUpperCase(),
+                                      style: TextStyle(color: AppColors.yellow, fontWeight: FontWeight.bold),
                                     ),
                                   ),
-                                ),
-                                title: Text(
-                                  displayName,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                                subtitle: contact.phones.isNotEmpty
-                                    ? Text(
-                                        contact.phones.first.number,
-                                        style: TextStyle(
-                                          color: Colors.grey[600],
-                                          fontSize: 14,
-                                        ),
-                                      )
-                                    : Text(
-                                        'Aucun numéro',
-                                        style: TextStyle(
-                                          color: Colors.grey[400],
-                                          fontSize: 14,
-                                          fontStyle: FontStyle.italic,
-                                        ),
-                                      ),
-                                trailing: Icon(
-                                  Icons.arrow_forward_ios,
-                                  size: 16,
-                                  color: Colors.grey[400],
-                                ),
-                                onTap: () => Navigator.pop(context, contact),
-                              );
-                            },
-                          ),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-      );
+                                  title: Text(client.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                  subtitle: Text(client.phone),
+                                  trailing: Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
+                                  onTap: () => Navigator.pop(context, client),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
 
-      if (selectedContact != null && mounted) {
-        // Construire le nom complet
-        final displayName = selectedContact.displayName;
-        if (displayName.isNotEmpty) {
-          _clientNameController.text = displayName;
-        } else {
-          final firstName = selectedContact.name.first;
-          final lastName = selectedContact.name.last;
-          if (firstName.isNotEmpty || lastName.isNotEmpty) {
-            _clientNameController.text = [firstName, lastName].where((n) => n.isNotEmpty).join(' ');
-          }
-        }
-        
-        // Utiliser le premier numéro de téléphone disponible
-        if (selectedContact.phones.isNotEmpty) {
-          _clientPhoneController.text = selectedContact.phones.first.number;
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur lors de la sélection du contact: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+    if (selectedClient != null && mounted) {
+      setState(() {
+        _clientNameController.text = selectedClient.name;
+        _clientPhoneController.text = selectedClient.phone;
+      });
     }
   }
 
@@ -1404,11 +1332,14 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
                               foregroundColor: Colors.grey[700],
                               side: BorderSide(color: Colors.grey[300]!),
                               minimumSize: const Size(0, 56),
+                              padding: const EdgeInsets.symmetric(horizontal: 24),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                             ),
                             child: const Text(
                               'TERMINER',
                               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ),
@@ -1428,7 +1359,7 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
                           ),
                           child: Text(
                             articleCount > 0 ? 'AJOUTER ' : 'AJOUTER AU DEVIS',
-                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                           ),
                         ),
                       ),

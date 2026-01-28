@@ -31,6 +31,7 @@ import 'src/presentation/blocs/dashboard/dashboard_bloc.dart';
 import 'src/presentation/blocs/template/template_bloc.dart';
 import 'src/presentation/blocs/template/template_event.dart';
 import 'src/presentation/screens/auth_gate.dart';
+import 'src/presentation/widgets/custom_connectivity_banner.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -114,6 +115,11 @@ class DevisProApp extends StatelessWidget {
               debugShowCheckedModeBanner: false,
               title: 'DevisPro',
               theme: AppTheme.light(),
+              builder: (context, child) {
+                return CustomConnectivityBanner(
+                  child: child ?? const SizedBox.shrink(),
+                );
+              },
               home: const AuthGate(),
             );
           },

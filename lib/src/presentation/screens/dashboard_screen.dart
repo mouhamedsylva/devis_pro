@@ -25,15 +25,46 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   int _selectedIndex = 0;
+  bool _isOnline = true;
+  final ConnectivityService _connectivityService = ConnectivityService();
+  final ScrollController _scrollController = ScrollController();
+  bool _isScrolled = false;
 
   @override
   void initState() {
     super.initState();
     context.read<DashboardBloc>().add(LoadDashboardData());
+
+    _scrollController.addListener(() {
+      if (_scrollController.offset > 50 && !_isScrolled) {
+        setState(() => _isScrolled = true);
+      } else if (_scrollController.offset <= 50 && _isScrolled) {
+        setState(() => _isScrolled = false);
+      }
+    });
+
+    _connectivityService.startMonitoring();
+    _connectivityService.connectionStatus.listen((isConnected) {
+      if (mounted) {
+        setState(() {
+          _isOnline = isConnected;
+        });
+      }
+    });
+
+    _connectivityService.checkConnection().then((isConnected) {
+      if (mounted) {
+        setState(() {
+          _isOnline = isConnected;
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
+    _scrollController.dispose();
+    _connectivityService.stopMonitoring();
     super.dispose();
   }
 
@@ -217,6 +248,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
         if (state is DashboardLoaded) {
           return CustomScrollView(
+            controller: _scrollController,
             slivers: [
               _buildSliverAppBar(),
               SliverToBoxAdapter(
@@ -246,42 +278,54 @@ class _DashboardScreenState extends State<DashboardScreen> {
       expandedHeight: 120,
       floating: false,
       pinned: true,
-      backgroundColor: Colors.white,
-      elevation: 0,
+      backgroundColor: _isScrolled ? AppColors.yellow : Colors.white,
+      elevation: _isScrolled ? 4 : 0,
+      centerTitle: false,
+      title: _isScrolled ? const Text('DEVIS PRO', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 1.5)) : null,
+      actions: _isScrolled ? [
+        IconButton(onPressed: () => _confirmLogout(context), icon: const Icon(Icons.logout_rounded, color: Colors.white)),
+      ] : null,
       flexibleSpace: FlexibleSpaceBar(
-        background: Container(
-          decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 2))]),
+        background: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          decoration: BoxDecoration(
+            color: _isScrolled ? AppColors.yellow : Colors.white,
+            boxShadow: _isScrolled ? [] : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 2))],
+          ),
           child: SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-              child: Row(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(colors: [AppColors.yellow, const Color(0xFFFFD700)]),
-                      boxShadow: [BoxShadow(color: AppColors.yellow.withOpacity(0.3), blurRadius: 12, spreadRadius: 2)],
+              child: Opacity(
+                opacity: _isScrolled ? 0 : 1,
+                child: Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(colors: [AppColors.yellow, const Color(0xFFFFD700)]),
+                        boxShadow: [BoxShadow(color: AppColors.yellow.withOpacity(0.3), blurRadius: 12, spreadRadius: 2)],
+                      ),
+                      child: const Icon(Icons.description, color: Colors.white, size: 24),
                     ),
-                    child: const Icon(Icons.description, color: Colors.white, size: 24),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text('DEVIS PRO', style: TextStyle(color: AppColors.yellow, fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 2)),
-                        const Text('Tableau de bord', style: TextStyle(color: Color(0xFF666666), fontSize: 13, fontWeight: FontWeight.w500, letterSpacing: 0.5)),
-                      ],
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text('DEVIS PRO', style: TextStyle(color: AppColors.yellow, fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 2)),
+                          const Text('Tableau de bord', style: TextStyle(color: Color(0xFF666666), fontSize: 13, fontWeight: FontWeight.w500, letterSpacing: 0.5)),
+                        ],
+                      ),
                     ),
-                  ),
-                  Container(
-                    decoration: BoxDecoration(color: const Color(0xFFF5F5F5), borderRadius: BorderRadius.circular(12)),
-                    child: IconButton(onPressed: () => _confirmLogout(context), icon: const Icon(Icons.logout_rounded, color: Color(0xFF666666), size: 22)),
-                  ),
-                ],
+                    Container(
+                      decoration: BoxDecoration(color: const Color(0xFFF5F5F5), borderRadius: BorderRadius.circular(12)),
+                      child: IconButton(onPressed: () => _confirmLogout(context), icon: const Icon(Icons.logout_rounded, color: Color(0xFF666666), size: 22)),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -315,6 +359,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   icon: Icons.note_add_rounded,
                   value: state.totalTemplates.toString(),
                   label: 'Modèles',
+                  backgroundColor: !_isOnline ? Colors.blue : Colors.white,
+                  showBadge: !_isOnline,
                   badgeText: 'LOCAL',
                 ),
               ),
