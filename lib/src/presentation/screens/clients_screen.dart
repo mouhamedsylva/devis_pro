@@ -8,6 +8,7 @@ import '../../domain/entities/client.dart';
 import '../blocs/clients/client_bloc.dart';
 import '../widgets/app_text_field.dart';
 import '../widgets/confirmation_dialog.dart';
+import '../widgets/app_scaffold.dart';
 
 class ClientsScreen extends StatefulWidget {
   const ClientsScreen({super.key});
@@ -79,7 +80,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AppScaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
         title: TextField(
@@ -174,6 +175,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
               return Dismissible(
                 key: ValueKey(c.id),
                 direction: DismissDirection.endToStart,
+                dismissThresholds: const {DismissDirection.endToStart: 0.6},
                 background: Container(
                   padding: const EdgeInsets.only(right: 20),
                   decoration: BoxDecoration(

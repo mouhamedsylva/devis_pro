@@ -30,6 +30,7 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
           vatRate: event.vatRate,
           unit: event.unit,
         );
+        await Future.delayed(const Duration(milliseconds: 50)); // Add small delay
         add(const ProductListRequested());
       } catch (e) {
         emit(ProductState.failure(e.toString()));

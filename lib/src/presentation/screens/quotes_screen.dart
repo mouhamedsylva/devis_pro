@@ -14,6 +14,7 @@ import 'quote_editor_screen.dart';
 import 'templates_screen.dart';
 import '../services/quote_pdf_service.dart';
 import '../widgets/confirmation_dialog.dart';
+import '../widgets/app_scaffold.dart';
 
 class QuotesScreen extends StatefulWidget {
   const QuotesScreen({super.key});
@@ -57,7 +58,7 @@ class _QuotesScreenState extends State<QuotesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AppScaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
         title: TextField(
@@ -68,7 +69,7 @@ class _QuotesScreenState extends State<QuotesScreen> {
             filled: false,
             suffixIcon: _searchController.text.isNotEmpty
                 ? IconButton(
-                    icon: const Icon(Icons.clear, color: Colors.grey),
+                    icon: const Icon(Icons.clear, color: Colors.white),
                     onPressed: () {
                       _searchController.clear();
                       setState(() {});
@@ -81,15 +82,15 @@ class _QuotesScreenState extends State<QuotesScreen> {
           },
         ),
         actions: [
-          IconButton(
-            tooltip: 'Modèles',
-            icon: const Icon(Icons.note_add_rounded),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const TemplatesScreen()),
-              );
-            },
-          ),
+          // IconButton(
+          //   tooltip: 'Modèles',
+          //   icon: const Icon(Icons.note_add_rounded),
+          //   onPressed: () {
+          //     Navigator.of(context).push(
+          //       MaterialPageRoute(builder: (_) => const TemplatesScreen()),
+          //     );
+          //   },
+          // ),
           IconButton(
             icon: const Icon(Icons.filter_list),
             onPressed: () {
@@ -222,6 +223,7 @@ class _QuotesScreenState extends State<QuotesScreen> {
     return Dismissible(
       key: ValueKey('quote_${quote.id}'),
       direction: DismissDirection.endToStart,
+      dismissThresholds: const {DismissDirection.endToStart: 0.6},
       confirmDismiss: (direction) async {
         return await showDialog<bool>(
           context: context,

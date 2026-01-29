@@ -340,32 +340,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Vue d\'ensemble', style: TextStyle(color: Color(0xFF1A1A1A), fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(child: _buildStatCard(icon: Icons.people_rounded, value: state.totalClients.toString(), label: 'Clients')),
-              const SizedBox(width: 12),
-              Expanded(child: _buildStatCard(icon: Icons.inventory_2_rounded, value: state.totalProducts.toString(), label: 'Produits')),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(child: _buildStatCard(icon: Icons.receipt_long_rounded, value: state.totalQuotes.toString(), label: 'Devis total')),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildStatCard(
-                  icon: Icons.note_add_rounded,
-                  value: state.totalTemplates.toString(),
-                  label: 'Modèles',
-                  backgroundColor: !_isOnline ? Colors.blue : Colors.white,
-                  showBadge: !_isOnline,
-                  badgeText: 'LOCAL',
-                ),
-              ),
-            ],
-          ),
+                    const Text('Vue d\'ensemble', style: TextStyle(color: Color(0xFF1A1A1A), fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(child: _buildStatCard(icon: Icons.people_rounded, value: state.totalClients.toString(), label: 'Clients')),
+                        const SizedBox(width: 12),
+                        Expanded(child: _buildStatCard(icon: Icons.receipt_long_rounded, value: state.totalQuotes.toString(), label: 'Devis total')),
+                      ],
+                    ),
+                    // Commented out Products and Templates section for v2
+                    /*
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(child: _buildStatCard(icon: Icons.inventory_2_rounded, value: state.totalProducts.toString(), label: 'Produits')),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildStatCard(
+                            icon: Icons.note_add_rounded,
+                            value: state.totalTemplates.toString(),
+                            label: 'Modèles',
+                            backgroundColor: !_isOnline ? Colors.blue : Colors.white,
+                            showBadge: !_isOnline,
+                            badgeText: 'LOCAL',
+                          ),
+                        ),
+                      ],
+                    ),
+                    */
         ],
       ),
     );

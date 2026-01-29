@@ -7,6 +7,7 @@ import '../../domain/entities/product.dart';
 import '../blocs/products/product_bloc.dart';
 import '../widgets/app_text_field.dart';
 import '../widgets/confirmation_dialog.dart';
+import '../widgets/app_scaffold.dart';
 
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
@@ -24,7 +25,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
     super.initState();
     context.read<ProductBloc>().add(const ProductListRequested());
     _searchController.addListener(() {
-      setState(() {}); // Pour mettre à jour l'icône clear
+      if (mounted) { // Ensure the widget is still in the tree
+        setState(() {}); // Pour mettre à jour l'icône clear
+      }
     });
   }
 
@@ -36,7 +39,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AppScaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
         title: TextField(
@@ -47,7 +50,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
             filled: false,
             suffixIcon: _searchController.text.isNotEmpty
                 ? IconButton(
-                    icon: const Icon(Icons.clear, color: Colors.grey),
+                    icon: const Icon(Icons.clear, color: Colors.white),
                     onPressed: () {
                       _searchController.clear();
                       setState(() {});
@@ -112,7 +115,14 @@ class _ProductsScreenState extends State<ProductsScreen> {
       body: BlocConsumer<ProductBloc, ProductState>(
         listenWhen: (p, c) => c.status == ProductStatus.failure && c.message != null,
         listener: (context, state) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message!)));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message!),
+              backgroundColor: Colors.red, // Assuming failure snackbars are red
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.only(bottom: 20),
+            ),
+          );
         },
         builder: (context, state) {
           if (state.status == ProductStatus.loading) {
@@ -145,6 +155,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
               return Dismissible(
                 key: ValueKey(p.id),
                 direction: DismissDirection.endToStart,
+                dismissThresholds: const {DismissDirection.endToStart: 0.6},
                 background: Container(
                   padding: const EdgeInsets.only(right: 20),
                   decoration: BoxDecoration(
@@ -233,10 +244,22 @@ class _ProductsScreenState extends State<ProductsScreen> {
     
     final bloc = context.read<ProductBloc>();
     final nameCtrl = TextEditingController(text: existing?.name ?? '');
-    final priceCtrl = TextEditingController(text: existing?.unitPrice.toStringAsFixed(0) ?? '');
-    final vatCtrl = TextEditingController(text: existing == null ? '18' : (existing.vatRate * 100).toStringAsFixed(0));
+    final priceCtrl = TextEditingController(
+      text: existing?.unitPrice.toStringAsFixed(0) ?? ''
+    );
+    final vatCtrl = TextEditingController(
+      text: existing == null 
+        ? '18' 
+        : (existing.vatRate * 100).toStringAsFixed(0)
+    );
+    
     String selectedUnit = existing?.unit ?? 'Unité';
-    final List<String> units = ['Unité', 'm', 'm²', 'm³', 'kg', 'Litre', 'Heure', 'Jour', 'Forfait', 'Sac', 'Voyage'];
+    bool isVatEnabled = existing == null ? true : existing.vatRate > 0;
+    
+    final List<String> units = [
+      'Unité', 'm', 'm²', 'm³', 'kg', 'Litre', 
+      'Heure', 'Jour', 'Forfait', 'Sac', 'Voyage'
+    ];
 
     final saved = await showDialog<dynamic>(
       context: context,
@@ -246,158 +269,587 @@ class _ProductsScreenState extends State<ProductsScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             final screenHeight = MediaQuery.of(context).size.height;
+            
             return Dialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              elevation: 10,
-              child: Container(
-                constraints: BoxConstraints(maxWidth: 500, maxHeight: screenHeight * 0.9),
-                child: SingleChildScrollView(
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Header
-                        Container(
-                          padding: const EdgeInsets.all(24),
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(colors: [Color(0xFFFDB913), Color(0xFFFFD700)]),
-                            borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24)
+              ),
+              elevation: 0,
+              backgroundColor: Colors.transparent,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return Center(
+                    child: Container(
+                      width: constraints.maxWidth > 500 
+                        ? 500 
+                        : constraints.maxWidth * 0.9,
+                      constraints: BoxConstraints(
+                        maxHeight: screenHeight * 0.85
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.15),
+                            blurRadius: 30,
+                            offset: const Offset(0, 10),
                           ),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(color: Colors.white.withOpacity(0.3), borderRadius: BorderRadius.circular(12)),
-                                child: const Icon(Icons.inventory_2_rounded, color: Colors.white, size: 28),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // ✨ HEADER MODERNE
+                          Container(
+                            padding: const EdgeInsets.all(24),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  AppColors.yellow,
+                                  AppColors.yellow.withOpacity(0.8),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
                               ),
-                              const SizedBox(width: 16),
-                              Expanded(
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(24),
+                                topRight: Radius.circular(24),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.25),
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  child: const Icon(
+                                    Icons.inventory_2_rounded,
+                                    color: Colors.white,
+                                    size: 28,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        existing == null 
+                                          ? 'Nouveau Produit' 
+                                          : 'Modifier Produit',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: 0.5,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        existing == null 
+                                          ? 'Ajoutez un produit au catalogue' 
+                                          : 'Modifiez les informations',
+                                        style: TextStyle(
+                                          color: Colors.white.withOpacity(0.95),
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  onPressed: () => Navigator.pop(dialogContext, false),
+                                  icon: const Icon(
+                                    Icons.close_rounded, 
+                                    color: Colors.white, 
+                                    size: 24
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                ),
+                              ],
+                            ),
+                          ),
+                          
+                          // ✨ FORMULAIRE AVEC SCROLL
+                          Flexible(
+                            fit: FlexFit.loose,
+                            child: SingleChildScrollView(
+                              padding: const EdgeInsets.all(20),
+                              child: Form(
+                                key: _formKey,
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(existing == null ? 'Nouveau produit' : 'Modifier produit',
-                                        style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
-                                    const SizedBox(height: 4),
-                                    Text(existing == null ? 'Ajoutez un produit ou service' : 'Modifiez les informations',
-                                        style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 13, fontWeight: FontWeight.w500)),
+                                    // Nom du produit
+                                    const Text(
+                                      'NOM DU PRODUIT OU SERVICE',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w800,
+                                        color: Colors.grey,
+                                        letterSpacing: 1,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    TextFormField(
+                                      controller: nameCtrl,
+                                      autofocus: true,
+                                      textCapitalization: TextCapitalization.words,
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                      decoration: InputDecoration(
+                                        hintText: 'Ex: Ciment Portland, Consultation IT...',
+                                        hintStyle: TextStyle(
+                                          color: Colors.grey[400],
+                                          fontWeight: FontWeight.w400,
+                                        ),
+                                        prefixIcon: Icon(
+                                          Icons.inventory_2_outlined,
+                                          size: 22,
+                                          color: AppColors.yellow,
+                                        ),
+                                        filled: true,
+                                        fillColor: const Color(0xFFF8F9FA),
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(14),
+                                          borderSide: BorderSide.none,
+                                        ),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(14),
+                                          borderSide: BorderSide(
+                                            color: Colors.grey[200]!, 
+                                            width: 1
+                                          ),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(14),
+                                          borderSide: BorderSide(
+                                            color: AppColors.yellow, 
+                                            width: 2
+                                          ),
+                                        ),
+                                        errorBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(14),
+                                          borderSide: const BorderSide(
+                                            color: Colors.red, 
+                                            width: 1
+                                          ),
+                                        ),
+                                        focusedErrorBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(14),
+                                          borderSide: const BorderSide(
+                                            color: Colors.red, 
+                                            width: 2
+                                          ),
+                                        ),
+                                        contentPadding: const EdgeInsets.symmetric(
+                                          horizontal: 16, 
+                                          vertical: 16
+                                        ),
+                                      ),
+                                      validator: (v) => (v == null || v.trim().isEmpty) 
+                                        ? 'Le nom est requis' 
+                                        : null,
+                                    ),
+                                    const SizedBox(height: 24),
+                                    
+                                    // Prix et TVA
+                                    Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        // Prix unitaire
+                                        Expanded(
+                                          flex: 2,
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              const Text(
+                                                'PRIX UNITAIRE',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: Colors.grey,
+                                                  letterSpacing: 1,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 10),
+                                              TextFormField(
+                                                controller: priceCtrl,
+                                                keyboardType: const TextInputType.numberWithOptions(
+                                                  decimal: true
+                                                ),
+                                                style: const TextStyle(
+                                                  fontSize: 15,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                                decoration: InputDecoration(
+                                                  hintText: '0',
+                                                  hintStyle: TextStyle(
+                                                    color: Colors.grey[400],
+                                                    fontWeight: FontWeight.w400,
+                                                  ),
+                                                  prefixIcon: Icon(
+                                                    Icons.payments_outlined,
+                                                    size: 22,
+                                                    color: AppColors.yellow,
+                                                  ),
+                                                  suffixText: 'FCFA',
+                                                  suffixStyle: TextStyle(
+                                                    color: Colors.grey[600],
+                                                    fontWeight: FontWeight.w600,
+                                                    fontSize: 13,
+                                                  ),
+                                                  filled: true,
+                                                  fillColor: const Color(0xFFF8F9FA),
+                                                  border: OutlineInputBorder(
+                                                    borderRadius: BorderRadius.circular(14),
+                                                    borderSide: BorderSide.none,
+                                                  ),
+                                                  enabledBorder: OutlineInputBorder(
+                                                    borderRadius: BorderRadius.circular(14),
+                                                    borderSide: BorderSide(
+                                                      color: Colors.grey[200]!, 
+                                                      width: 1
+                                                    ),
+                                                  ),
+                                                  focusedBorder: OutlineInputBorder(
+                                                    borderRadius: BorderRadius.circular(14),
+                                                    borderSide: BorderSide(
+                                                      color: AppColors.yellow, 
+                                                      width: 2
+                                                    ),
+                                                  ),
+                                                  errorBorder: OutlineInputBorder(
+                                                    borderRadius: BorderRadius.circular(14),
+                                                    borderSide: const BorderSide(
+                                                      color: Colors.red, 
+                                                      width: 1
+                                                    ),
+                                                  ),
+                                                  focusedErrorBorder: OutlineInputBorder(
+                                                    borderRadius: BorderRadius.circular(14),
+                                                    borderSide: const BorderSide(
+                                                      color: Colors.red, 
+                                                      width: 2
+                                                    ),
+                                                  ),
+                                                  contentPadding: const EdgeInsets.symmetric(
+                                                    horizontal: 16, 
+                                                    vertical: 16
+                                                  ),
+                                                ),
+                                                validator: (v) {
+                                                  if (v == null || v.trim().isEmpty) {
+                                                    return 'Requis';
+                                                  }
+                                                  final val = double.tryParse(
+                                                    v.trim().replaceAll(',', '.')
+                                                  );
+                                                  if (val == null) return 'Invalide';
+                                                  if (val < 0) return 'Doit être positif';
+                                                  return null;
+                                                },
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(width: 16),
+                                        
+                                        // TVA
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                children: [
+                                                  const Text(
+                                                    'TVA %',
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.w800,
+                                                      color: Colors.grey,
+                                                      letterSpacing: 1,
+                                                    ),
+                                                  ),
+                                                  Transform.scale(
+                                                    scale: 0.8,
+                                                    child: Switch(
+                                                      value: isVatEnabled,
+                                                      activeColor: AppColors.yellow,
+                                                      onChanged: (value) {
+                                                        setDialogState(() {
+                                                          isVatEnabled = value;
+                                                          if (!value) vatCtrl.text = '0';
+                                                        });
+                                                      },
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 10),
+                                              TextFormField(
+                                                controller: vatCtrl,
+                                                enabled: isVatEnabled,
+                                                keyboardType: const TextInputType.numberWithOptions(
+                                                  decimal: true
+                                                ),
+                                                textAlign: TextAlign.center,
+                                                style: TextStyle(
+                                                  fontSize: 15,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: isVatEnabled 
+                                                    ? Colors.black 
+                                                    : Colors.grey[400],
+                                                ),
+                                                decoration: InputDecoration(
+                                                  hintText: '18',
+                                                  filled: true,
+                                                  fillColor: isVatEnabled 
+                                                    ? const Color(0xFFF8F9FA) 
+                                                    : Colors.grey[100],
+                                                  border: OutlineInputBorder(
+                                                    borderRadius: BorderRadius.circular(14),
+                                                    borderSide: BorderSide.none,
+                                                  ),
+                                                  enabledBorder: OutlineInputBorder(
+                                                    borderRadius: BorderRadius.circular(14),
+                                                    borderSide: BorderSide(
+                                                      color: isVatEnabled 
+                                                        ? Colors.grey[200]! 
+                                                        : Colors.grey[300]!,
+                                                      width: 1,
+                                                    ),
+                                                  ),
+                                                  focusedBorder: OutlineInputBorder(
+                                                    borderRadius: BorderRadius.circular(14),
+                                                    borderSide: BorderSide(
+                                                      color: AppColors.yellow, 
+                                                      width: 2
+                                                    ),
+                                                  ),
+                                                  disabledBorder: OutlineInputBorder(
+                                                    borderRadius: BorderRadius.circular(14),
+                                                    borderSide: BorderSide(
+                                                      color: Colors.grey[300]!, 
+                                                      width: 1
+                                                    ),
+                                                  ),
+                                                  errorBorder: OutlineInputBorder(
+                                                    borderRadius: BorderRadius.circular(14),
+                                                    borderSide: const BorderSide(
+                                                      color: Colors.red, 
+                                                      width: 1
+                                                    ),
+                                                  ),
+                                                  focusedErrorBorder: OutlineInputBorder(
+                                                    borderRadius: BorderRadius.circular(14),
+                                                    borderSide: const BorderSide(
+                                                      color: Colors.red, 
+                                                      width: 2
+                                                    ),
+                                                  ),
+                                                  contentPadding: const EdgeInsets.symmetric(
+                                                    horizontal: 12, 
+                                                    vertical: 16
+                                                  ),
+                                                ),
+                                                validator: (v) {
+                                                  if (!isVatEnabled) return null;
+                                                  if (v == null || v.trim().isEmpty) {
+                                                    return 'Requis';
+                                                  }
+                                                  final val = double.tryParse(v.trim());
+                                                  if (val == null) return 'Invalide';
+                                                  if (val < 0 || val > 100) {
+                                                    return '0-100';
+                                                  }
+                                                  return null;
+                                                },
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 24),
+                                    
+                                    // Unité
+                                    const Text(
+                                      'UNITÉ DE MESURE',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w800,
+                                        color: Colors.grey,
+                                        letterSpacing: 1,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16, 
+                                        vertical: 4
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF8F9FA),
+                                        borderRadius: BorderRadius.circular(14),
+                                        border: Border.all(
+                                          color: Colors.grey[200]!, 
+                                          width: 1
+                                        ),
+                                      ),
+                                      child: DropdownButtonHideUnderline(
+                                        child: DropdownButton<String>(
+                                          value: selectedUnit,
+                                          isExpanded: true,
+                                          icon: Icon(
+                                            Icons.arrow_drop_down, 
+                                            color: AppColors.yellow
+                                          ),
+                                          style: const TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.black87,
+                                          ),
+                                          items: units.map((u) {
+                                            return DropdownMenuItem<String>(
+                                              value: u,
+                                              child: Row(
+                                                children: [
+                                                  Icon(
+                                                    _getUnitIcon(u),
+                                                    size: 18,
+                                                    color: Colors.grey[600],
+                                                  ),
+                                                  const SizedBox(width: 12),
+                                                  Text(u),
+                                                ],
+                                              ),
+                                            );
+                                          }).toList(),
+                                          onChanged: (v) => setDialogState(() {
+                                            selectedUnit = v ?? 'Unité';
+                                          }),
+                                        ),
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
-                            ],
+                            ),
                           ),
-                        ),
-                        // Form
-                        Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              TextFormField(
-                                controller: nameCtrl,
-                                decoration: const InputDecoration(
-                                  labelText: 'Nom du produit ou service *',
-                                  prefixIcon: Icon(Icons.inventory_2_outlined, size: 20),
-                                ),
-                                validator: (v) => (v == null || v.trim().isEmpty) ? 'Le nom est requis' : null,
+                          
+                          // ✨ FOOTER AVEC BOUTONS
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[50],
+                              borderRadius: const BorderRadius.only(
+                                bottomLeft: Radius.circular(24),
+                                bottomRight: Radius.circular(24),
                               ),
-                              const SizedBox(height: 20),
-                              TextFormField(
-                                controller: priceCtrl,
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                decoration: const InputDecoration(
-                                  labelText: 'Prix unitaire (FCFA) *',
-                                  prefixIcon: Icon(Icons.payments_outlined, size: 20),
-                                  suffixText: 'FCFA',
+                              border: Border(
+                                top: BorderSide(
+                                  color: Colors.grey[200]!, 
+                                  width: 1
                                 ),
-                                validator: (v) {
-                                  if (v == null || v.trim().isEmpty) return 'Le prix est requis';
-                                  if (double.tryParse(v.trim().replaceAll(',', '.')) == null) return 'Prix invalide';
-                                  return null;
-                                },
                               ),
-                              const SizedBox(height: 20),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: TextFormField(
-                                      controller: vatCtrl,
-                                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                      decoration: const InputDecoration(
-                                        labelText: 'TVA (%)',
-                                        prefixIcon: Icon(Icons.percent_rounded, size: 20),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton(
+                                    onPressed: () => Navigator.pop(dialogContext, false),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: Colors.grey[700],
+                                      side: BorderSide(color: Colors.grey[300]!),
+                                      minimumSize: const Size(0, 52),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(14),
                                       ),
-                                      validator: (v) {
-                                        if (v == null || v.trim().isEmpty) return 'Requis';
-                                        if (double.tryParse(v.trim()) == null) return 'Invalide';
-                                        return null;
-                                      },
+                                    ),
+                                    child: const Text(
+                                      'Annuler',
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700,
+                                      ),
                                     ),
                                   ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  flex: 2,
+                                  child: ElevatedButton(
+                                    onPressed: () {
+                                      if (_formKey.currentState!.validate()) {
+                                        Navigator.pop(dialogContext, {
+                                          'name': nameCtrl.text.trim(),
+                                          'price': double.tryParse(
+                                            priceCtrl.text.trim().replaceAll(',', '.')
+                                          ) ?? 0,
+                                          'vat': isVatEnabled 
+                                            ? (double.tryParse(
+                                                vatCtrl.text.trim().replaceAll(',', '.')
+                                              ) ?? 18) / 100 
+                                            : 0.0,
+                                          'unit': selectedUnit,
+                                        });
+                                      }
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.yellow,
+                                      foregroundColor: Colors.white,
+                                      minimumSize: const Size(0, 52),
+                                      elevation: 0,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
-                                        const Text('Unité', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
-                                        const SizedBox(height: 4),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                                          decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey[300]!)),
-                                          child: DropdownButtonHideUnderline(
-                                            child: DropdownButton<String>(
-                                              value: selectedUnit,
-                                              isExpanded: true,
-                                              items: units.map((u) => DropdownMenuItem(value: u, child: Text(u))).toList(),
-                                              onChanged: (v) => setDialogState(() => selectedUnit = v ?? 'Unité'),
-                                            ),
+                                        Icon(
+                                          existing == null 
+                                            ? Icons.add_circle_outline 
+                                            : Icons.check_circle_outline,
+                                          size: 20,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          existing == null 
+                                            ? 'Ajouter' 
+                                            : 'Enregistrer',
+                                          style: const TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w900,
+                                            letterSpacing: 0.5,
                                           ),
                                         ),
                                       ],
                                     ),
                                   ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        // Actions
-                        Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(color: Colors.grey[50], borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(20), bottomRight: Radius.circular(20))),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Annuler')),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: ElevatedButton(
-                                  onPressed: () {
-                                    if (_formKey.currentState!.validate()) {
-                                      Navigator.pop(dialogContext, {
-                                        'name': nameCtrl.text.trim(),
-                                        'price': double.tryParse(priceCtrl.text.trim().replaceAll(',', '.')) ?? 0,
-                                        'vat': (double.tryParse(vatCtrl.text.trim().replaceAll(',', '.')) ?? 18) / 100,
-                                        'unit': selectedUnit,
-                                      });
-                                    }
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFFF9B000),
-                                    foregroundColor: Colors.white,
-                                    minimumSize: const Size(double.infinity, 52),
-                                  ),
-                                  child: const Text('Enregistrer'),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
             );
           },
@@ -406,19 +858,57 @@ class _ProductsScreenState extends State<ProductsScreen> {
     );
 
     if (!mounted) return;
-
+    
     if (saved != null && saved != false) {
       final res = saved as Map<String, dynamic>;
       if (existing == null) {
-        bloc.add(ProductCreateRequested(name: res['name'], unitPrice: res['price'], vatRate: res['vat'], unit: res['unit']));
+        bloc.add(ProductCreateRequested(
+          name: res['name'] as String,
+          unitPrice: res['price'] as double,
+          vatRate: res['vat'] as double,
+          unit: res['unit'] as String,
+        ));
       } else {
-        bloc.add(ProductUpdateRequested(Product(id: existing.id, name: res['name'], unitPrice: res['price'], vatRate: res['vat'], unit: res['unit'])));
+        bloc.add(ProductUpdateRequested(
+          Product(
+            id: existing.id,
+            name: res['name'] as String,
+            unitPrice: res['price'] as double,
+            vatRate: res['vat'] as double,
+            unit: res['unit'] as String,
+          ),
+        ));
       }
     }
     
     nameCtrl.dispose();
     priceCtrl.dispose();
     vatCtrl.dispose();
+  }
+
+  // Helper pour les icônes d'unités
+  IconData _getUnitIcon(String unit) {
+    switch (unit) {
+      case 'm':
+      case 'm²':
+      case 'm³':
+        return Icons.straighten;
+      case 'kg':
+        return Icons.scale;
+      case 'Litre':
+        return Icons.local_drink;
+      case 'Heure':
+      case 'Jour':
+        return Icons.schedule;
+      case 'Forfait':
+        return Icons.workspace_premium;
+      case 'Sac':
+        return Icons.shopping_bag;
+      case 'Voyage':
+        return Icons.local_shipping;
+      default:
+        return Icons.inventory_2_outlined;
+    }
   }
 
   void _showFilterSortOptions(BuildContext context) {

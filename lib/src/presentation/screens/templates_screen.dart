@@ -8,6 +8,7 @@ import '../blocs/template/template_event.dart';
 import '../blocs/template/template_state.dart';
 import 'template_editor_screen.dart';
 import '../widgets/confirmation_dialog.dart';
+import '../widgets/app_scaffold.dart';
 
 /// Écran de gestion des templates de devis (Uniquement Personnalisés).
 class TemplatesScreen extends StatefulWidget {
@@ -45,7 +46,7 @@ class _TemplatesScreenState extends State<TemplatesScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AppScaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
         backgroundColor: Colors.transparent,

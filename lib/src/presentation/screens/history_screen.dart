@@ -4,6 +4,7 @@ import '../../domain/repositories/activity_repository.dart';
 import '../../domain/entities/activity_log.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/formatters.dart';
+import '../widgets/app_scaffold.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -35,7 +36,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AppScaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
         title: const Text('Historique d\'activités'),

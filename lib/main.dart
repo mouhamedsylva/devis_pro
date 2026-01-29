@@ -116,9 +116,7 @@ class DevisProApp extends StatelessWidget {
               title: 'DevisPro',
               theme: AppTheme.light(),
               builder: (context, child) {
-                return CustomConnectivityBanner(
-                  child: child ?? const SizedBox.shrink(),
-                );
+                return child ?? const SizedBox.shrink();
               },
               home: const AuthGate(),
             );

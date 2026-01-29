@@ -355,9 +355,13 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
   /// NOUVEAU : Modal de sélection de client local avec recherche
   Future<void> _showClientPicker() async {
     final clientRepo = context.read<ClientRepository>();
-    final clients = await clientRepo.list();
+    final allClients = await clientRepo.list();
 
     if (!mounted) return;
+
+    // Initialize searchController and filteredClients once for this modal instance
+    final TextEditingController searchController = TextEditingController();
+    List<Client> filteredClients = allClients;
 
     final selectedClient = await showModalBottomSheet<Client>(
       context: context,
@@ -365,10 +369,6 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) {
-          // État local pour la recherche
-          final searchController = TextEditingController();
-          List<Client> filteredClients = clients;
-
           return DraggableScrollableSheet(
             initialChildSize: 0.7,
             minChildSize: 0.5,
@@ -418,7 +418,7 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
                                   onPressed: () {
                                     setModalState(() {
                                       searchController.clear();
-                                      filteredClients = clients;
+                                      filteredClients = allClients; // Use the original full list
                                     });
                                   },
                                 )
@@ -434,9 +434,9 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
                         onChanged: (value) {
                           setModalState(() {
                             if (value.isEmpty) {
-                              filteredClients = clients;
+                              filteredClients = allClients; // Use the original full list
                             } else {
-                              filteredClients = clients.where((client) {
+                              filteredClients = allClients.where((client) {
                                 final searchLower = value.toLowerCase();
                                 return client.name.toLowerCase().contains(searchLower) ||
                                     client.phone.toLowerCase().contains(searchLower);
@@ -496,6 +496,8 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
         },
       ),
     );
+
+    searchController.dispose(); // Dispose of the controller
 
     if (selectedClient != null && mounted) {
       setState(() {
@@ -623,6 +625,7 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
         return Dismissible(
           key: ValueKey('${l.name}_$i'),
           direction: DismissDirection.endToStart,
+          dismissThresholds: const {DismissDirection.endToStart: 0.6},
           background: Container(
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -1384,194 +1387,194 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
     );
   }
 
-  // void _showTemplatesDialog(BuildContext context) {
-  //   // Charger les templates
-  //   context.read<TemplateBloc>().add(const TemplateLoadAll());
+  void _showTemplatesDialog(BuildContext context) {
+    // Charger les templates
+    context.read<TemplateBloc>().add(const TemplateLoadAll());
 
-  //   showModalBottomSheet(
-  //     context: context,
-  //     isScrollControlled: true,
-  //     backgroundColor: Colors.transparent,
-  //     builder: (modalContext) {
-  //       return DraggableScrollableSheet(
-  //         initialChildSize: 0.7,
-  //         minChildSize: 0.5,
-  //         maxChildSize: 0.95,
-  //         builder: (context, scrollController) {
-  //           return Container(
-  //             decoration: const BoxDecoration(
-  //               color: Colors.white,
-  //               borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-  //             ),
-  //             child: Column(
-  //               children: [
-  //                 // Handle de drag
-  //                 Container(
-  //                   margin: const EdgeInsets.only(top: 12, bottom: 8),
-  //                   width: 40,
-  //                   height: 4,
-  //                   decoration: BoxDecoration(
-  //                     color: Colors.grey[300],
-  //                     borderRadius: BorderRadius.circular(2),
-  //                   ),
-  //                 ),
-  //                 // Header
-  //                 Padding(
-  //                   padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
-  //                   child: Row(
-  //                     children: [
-  //                       Icon(Icons.note_add, color: AppColors.yellow, size: 28),
-  //                       const SizedBox(width: 12),
-  //                       const Expanded(
-  //                         child: Text(
-  //                           'Choisir un modèle',
-  //                           style: TextStyle(
-  //                             fontSize: 22,
-  //                             fontWeight: FontWeight.bold,
-  //                           ),
-  //                         ),
-  //                       ),
-  //                       IconButton(
-  //                         icon: const Icon(Icons.close),
-  //                         onPressed: () => Navigator.pop(modalContext),
-  //                       ),
-  //                     ],
-  //                   ),
-  //                 ),
-  //                 const Divider(height: 1),
-  //                 // Liste des templates
-  //                 Expanded(
-  //                   child: BlocBuilder<TemplateBloc, TemplateState>(
-  //                     builder: (context, state) {
-  //                       if (state is TemplateLoading) {
-  //                         return const Center(child: CircularProgressIndicator());
-  //                       }
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (modalContext) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          builder: (context, scrollController) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Column(
+                children: [
+                  // Handle de drag
+                  Container(
+                    margin: const EdgeInsets.only(top: 12, bottom: 8),
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  // Header
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+                    child: Row(
+                      children: [
+                        Icon(Icons.note_add, color: AppColors.yellow, size: 28),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'Choisir un modèle',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(modalContext),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  // Liste des templates
+                  Expanded(
+                    child: BlocBuilder<TemplateBloc, TemplateState>(
+                      builder: (context, state) {
+                        if (state is TemplateLoading) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
 
-  //                       if (state is TemplateListLoaded) {
-  //                         if (state.templates.isEmpty) {
-  //                           return Center(
-  //                             child: Column(
-  //                               mainAxisAlignment: MainAxisAlignment.center,
-  //                               children: [
-  //                                 Icon(Icons.note_add_outlined,
-  //                                     size: 64, color: Colors.grey[400]),
-  //                                 const SizedBox(height: 16),
-  //                                 Text(
-  //                                   'Aucun modèle disponible',
-  //                                   style: TextStyle(
-  //                                     fontSize: 16,
-  //                                     color: Colors.grey[600],
-  //                                   ),
-  //                                 ),
-  //                               ],
-  //                             ),
-  //                           );
-  //                         }
+                        if (state is TemplateListLoaded) {
+                          if (state.templates.isEmpty) {
+                            return Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.note_add_outlined,
+                                      size: 64, color: Colors.grey[400]),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'Aucun modèle disponible',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
 
-  //                         return ListView.separated(
-  //                           controller: scrollController,
-  //                           padding: const EdgeInsets.all(24),
-  //                           itemCount: state.templates.length,
-  //                           separatorBuilder: (context, index) =>
-  //                               const SizedBox(height: 12),
-  //                           itemBuilder: (context, index) {
-  //                             final template = state.templates[index];
-  //                             return _buildTemplateListItem(
-  //                                 modalContext, template);
-  //                           },
-  //                         );
-  //                       }
+                          return ListView.separated(
+                            controller: scrollController,
+                            padding: const EdgeInsets.all(24),
+                            itemCount: state.templates.length,
+                            separatorBuilder: (context, index) =>
+                                const SizedBox(height: 12),
+                            itemBuilder: (context, index) {
+                              final template = state.templates[index];
+                              return _buildTemplateListItem(
+                                  modalContext, template);
+                            },
+                          );
+                        }
 
-  //                       return const Center(child: Text('Erreur de chargement'));
-  //                     },
-  //                   ),
-  //                 ),
-  //               ],
-  //             ),
-  //           );
-  //         },
-  //       );
-  //     },
-  //   );
-  // }
+                        return const Center(child: Text('Erreur de chargement'));
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 
-  // Widget _buildTemplateListItem(BuildContext modalContext, QuoteTemplate template) {
-  //   return Card(
-  //     elevation: 2,
-  //     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-  //     child: InkWell(
-  //       borderRadius: BorderRadius.circular(12),
-  //       onTap: () {
-  //         Navigator.pop(modalContext);
-  //         _loadTemplateData(template);
-  //       },
-  //       child: Padding(
-  //         padding: const EdgeInsets.all(16),
-  //         child: Row(
-  //           children: [
-  //             Container(
-  //               padding: const EdgeInsets.all(12),
-  //               decoration: BoxDecoration(
-  //                 color: AppColors.yellow.withOpacity(0.1),
-  //                 borderRadius: BorderRadius.circular(12),
-  //               ),
-  //               child: Icon(
-  //                 template.isCustom ? Icons.person : Icons.star,
-  //                 color: AppColors.yellow,
-  //                 size: 24,
-  //               ),
-  //             ),
-  //             const SizedBox(width: 16),
-  //             Expanded(
-  //               child: Column(
-  //                 crossAxisAlignment: CrossAxisAlignment.start,
-  //                 children: [
-  //                   Text(
-  //                     template.name,
-  //                     style: const TextStyle(
-  //                       fontSize: 16,
-  //                       fontWeight: FontWeight.bold,
-  //                     ),
-  //                   ),
-  //                   const SizedBox(height: 4),
-  //                   Text(
-  //                     template.description,
-  //                     style: TextStyle(
-  //                       fontSize: 13,
-  //                       color: Colors.grey[600],
-  //                     ),
-  //                     maxLines: 2,
-  //                     overflow: TextOverflow.ellipsis,
-  //                   ),
-  //                 ],
-  //               ),
-  //             ),
-  //             const SizedBox(width: 12),
-  //             Container(
-  //               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-  //               decoration: BoxDecoration(
-  //                 color: _getCategoryColor(template.category).withOpacity(0.1),
-  //                 borderRadius: BorderRadius.circular(20),
-  //                 border: Border.all(
-  //                   color: _getCategoryColor(template.category),
-  //                   width: 1.5,
-  //                 ),
-  //               ),
-  //               child: Text(
-  //                 template.category,
-  //                 style: TextStyle(
-  //                   fontSize: 11,
-  //                   fontWeight: FontWeight.bold,
-  //                   color: _getCategoryColor(template.category),
-  //                 ),
-  //               ),
-  //             ),
-  //           ],
-  //         ),
-  //       ),
-  //     ),
-  //   );
-  // }
+  Widget _buildTemplateListItem(BuildContext modalContext, QuoteTemplate template) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () {
+          Navigator.pop(modalContext);
+          _loadTemplateData(template);
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.yellow.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  template.isCustom ? Icons.person : Icons.star,
+                  color: AppColors.yellow,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      template.name,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      template.description,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey[600],
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _getCategoryColor(template.category).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: _getCategoryColor(template.category),
+                    width: 1.5,
+                  ),
+                ),
+                child: Text(
+                  template.category,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: _getCategoryColor(template.category),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   Color _getCategoryColor(String category) {
     switch (category) {
@@ -1590,38 +1593,38 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
     }
   }
 
-  // Future<void> _loadTemplateData(QuoteTemplate template) async {
-  //   // Charger les items du template
-  //   final templateRepo = context.read<TemplateRepository>();
-  //   final items = await templateRepo.getTemplateItems(template.id);
+  Future<void> _loadTemplateData(QuoteTemplate template) async {
+    // Charger les items du template
+    final templateRepo = context.read<TemplateRepository>();
+    final items = await templateRepo.getTemplateItems(template.id);
 
-  //   if (!mounted) return;
+    if (!mounted) return;
 
-  //   // Pré-remplir les lignes du devis
-  //   setState(() {
-  //     _lines.clear();
-  //     for (final item in items) {
-  //       _lines.add(_Line(
-  //         name: item.productName,
-  //         unitPrice: item.unitPrice,
-  //         vatRate: item.vatRate,
-  //         quantity: item.quantity.toDouble(),
-  //         unit: item.unit,
-  //       ));
-  //     }
-  //   });
+    // Pré-remplir les lignes du devis
+    setState(() {
+      _lines.clear();
+      for (final item in items) {
+        _lines.add(_Line(
+          name: item.productName,
+          unitPrice: item.unitPrice,
+          vatRate: item.vatRate,
+          quantity: item.quantity.toDouble(),
+          unit: item.unit,
+        ));
+      }
+    });
 
-  //   // Afficher un message de confirmation
-  //   if (mounted) {
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       SnackBar(
-  //         content: Text('Modèle "${template.name}" chargé avec ${items.length} article(s)'),
-  //         backgroundColor: Colors.green,
-  //         duration: const Duration(seconds: 2),
-  //       ),
-  //     );
-  //   }
-  // }
+    // Afficher un message de confirmation
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Modèle "${template.name}" chargé avec ${items.length} article(s)'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
 
   void _showHelp(BuildContext context) {
     showDialog(

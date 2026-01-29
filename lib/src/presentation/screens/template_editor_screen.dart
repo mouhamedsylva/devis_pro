@@ -7,6 +7,7 @@ import '../blocs/template/template_bloc.dart';
 import '../blocs/template/template_event.dart';
 import '../blocs/template/template_state.dart';
 import '../widgets/confirmation_dialog.dart';
+import '../widgets/app_scaffold.dart';
 
 /// Écran de création d'un template personnalisé.
 class TemplateEditorScreen extends StatefulWidget {
@@ -202,7 +203,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
           );
         }
       },
-      child: Scaffold(
+      child: AppScaffold(
         backgroundColor: Colors.grey[50],
         appBar: AppBar(
           elevation: 0,

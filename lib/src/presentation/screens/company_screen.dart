@@ -13,6 +13,7 @@ import '../../core/constants/app_colors.dart';
 import '../../domain/entities/company.dart';
 import '../blocs/company/company_bloc.dart';
 import '../widgets/app_text_field.dart';
+import '../widgets/app_scaffold.dart';
 
 class CompanyScreen extends StatefulWidget {
   const CompanyScreen({super.key});
@@ -239,7 +240,7 @@ class _CompanyScreenState extends State<CompanyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AppScaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       body: BlocConsumer<CompanyBloc, CompanyState>(
         listener: (context, state) {
