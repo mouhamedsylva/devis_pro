@@ -346,48 +346,59 @@ class _CompanyScreenState extends State<CompanyScreen> {
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
           decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF2D2D2D), Color(0xFF3D3D3D)],
+            image: DecorationImage(
+              image: AssetImage('assets/images/background.png'),
+              fit: BoxFit.cover,
             ),
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const SizedBox(height: 40),
-              // Logo Positionné au dessus du nom
-              GestureDetector(
-                onTap: _pickLogo,
-                child: Container(
-                  width: 90,
-                  height: 90,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 4))],
-                    border: Border.all(color: Colors.white, width: 3),
-                  ),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      ClipOval(
-                        child: logoPath != null && logoPath.isNotEmpty
-                            ? Image.file(File(logoPath), width: 90, height: 90, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _buildLogoPlaceholder())
-                            : _buildLogoPlaceholder(),
-                      ),
-                      Positioned(bottom: 0, right: 0, child: Container(padding: const EdgeInsets.all(4), decoration: const BoxDecoration(color: Color(0xFF2D2D2D), shape: BoxShape.circle), child: const Icon(Icons.edit, color: Colors.white, size: 10))),
-                    ],
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.black.withOpacity(0.3),
+                  Colors.black.withOpacity(0.7),
+                ],
+              ),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const SizedBox(height: 40),
+                // Logo Positionné au dessus du nom
+                GestureDetector(
+                  onTap: _pickLogo,
+                  child: Container(
+                    width: 90,
+                    height: 90,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 4))],
+                      border: Border.all(color: Colors.white, width: 3),
+                    ),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        ClipOval(
+                          child: logoPath != null && logoPath.isNotEmpty
+                              ? Image.file(File(logoPath), width: 90, height: 90, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _buildLogoPlaceholder())
+                              : _buildLogoPlaceholder(),
+                        ),
+                        Positioned(bottom: 0, right: 0, child: Container(padding: const EdgeInsets.all(4), decoration: const BoxDecoration(color: Color(0xFF2D2D2D), shape: BoxShape.circle), child: const Icon(Icons.edit, color: Colors.white, size: 10))),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                _nameCtrl.text.isEmpty ? 'VOTRE ENTREPRISE' : _nameCtrl.text.toUpperCase(),
-                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: 1.5),
-                textAlign: TextAlign.center,
-              ),
-            ],
+                const SizedBox(height: 16),
+                Text(
+                  _nameCtrl.text.isEmpty ? 'VOTRE ENTREPRISE' : _nameCtrl.text.toUpperCase(),
+                  style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: 1.5),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
           ),
         ),
       ),

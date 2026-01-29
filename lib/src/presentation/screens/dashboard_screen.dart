@@ -488,9 +488,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12), // ✅ Réduit de 16 à 12
         child: Container(
-          padding: const EdgeInsets.all(16), // ✅ Réduit de 20 à 16
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12), // ✅ Réduit encore
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
@@ -500,7 +500,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(12), // ✅ Réduit de 16 à 12
             border: Border.all(
               color: color.withOpacity(0.3),
               width: 1.5,
@@ -513,11 +513,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ],
           ),
-          child: Row( // ✅ Column remplacée par Row pour aligner horizontalement
+          child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                padding: const EdgeInsets.all(10), // ✅ Réduit de 12 à 10
+                padding: const EdgeInsets.all(8), // ✅ Réduit de 10 à 8
                 decoration: BoxDecoration(
                   color: color.withOpacity(0.15),
                   shape: BoxShape.circle,
@@ -525,21 +525,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: Icon(
                   icon,
                   color: color,
-                  size: 22, // ✅ Réduit de 28 à 22
+                  size: 20, // ✅ Réduit de 22 à 20
                 ),
               ),
-              const SizedBox(width: 12), // ✅ Espacement horizontal au lieu de vertical
-              Flexible( // ✅ Flexible pour gérer le texte long
+              const SizedBox(width: 10), // ✅ Réduit de 12 à 10
+              Flexible(
                 child: Text(
                   label,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 13, // ✅ Réduit de 14 à 13
-                    fontWeight: FontWeight.w600,
+                    fontSize: 12, // ✅ Réduit de 13 à 12
+                    fontWeight: FontWeight.w700, // ✅ Plus gras pour compenser
                     color: color.withOpacity(0.9),
-                    letterSpacing: 0.3,
+                    letterSpacing: 0.2, // ✅ Réduit de 0.3 à 0.2
                   ),
-                  maxLines: 2, // ✅ Permet 2 lignes si nécessaire
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
