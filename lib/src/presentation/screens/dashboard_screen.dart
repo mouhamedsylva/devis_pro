@@ -490,7 +490,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+          padding: const EdgeInsets.all(16), // ✅ Réduit de 20 à 16
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
@@ -513,11 +513,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ],
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+          child: Row( // ✅ Column remplacée par Row pour aligner horizontalement
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(10), // ✅ Réduit de 12 à 10
                 decoration: BoxDecoration(
                   color: color.withOpacity(0.15),
                   shape: BoxShape.circle,
@@ -525,18 +525,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: Icon(
                   icon,
                   color: color,
-                  size: 28,
+                  size: 22, // ✅ Réduit de 28 à 22
                 ),
               ),
-              const SizedBox(height: 12),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: color.withOpacity(0.9),
-                  letterSpacing: 0.3,
+              const SizedBox(width: 12), // ✅ Espacement horizontal au lieu de vertical
+              Flexible( // ✅ Flexible pour gérer le texte long
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 13, // ✅ Réduit de 14 à 13
+                    fontWeight: FontWeight.w600,
+                    color: color.withOpacity(0.9),
+                    letterSpacing: 0.3,
+                  ),
+                  maxLines: 2, // ✅ Permet 2 lignes si nécessaire
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],

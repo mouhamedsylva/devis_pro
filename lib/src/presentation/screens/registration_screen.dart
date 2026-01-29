@@ -576,7 +576,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> with TickerProv
     // ✨ Nouvelle validation : Lettres, espaces et symbole '.' seulement
     final companyRegex = RegExp(r'^[a-zA-Z\s\.]+$');
     if (!companyRegex.hasMatch(value.trim())) {
-      return 'Lettres, espaces et point (.) seulement';
+      return 'Lettres, espaces et point (.) et & seulement';
     }
 
     if (value.trim().length < 2) {
@@ -600,17 +600,26 @@ class _RegistrationScreenState extends State<RegistrationScreen> with TickerProv
     if (value == null || value.trim().isEmpty) {
       return 'Le numéro est requis';
     }
+    
     final cleaned = value.replaceAll(RegExp(r'[^0-9]'), '');
+    
+    // Vérifier la longueur (9 chiffres pour le Sénégal)
     if (cleaned.length != 9) {
       return 'Le numéro doit avoir 9 chiffres';
     }
     
-    // Prefixes Orange (77, 78), Tigo/Free (76), Expresso (70), Promobile (75)
+    // ✨ Validation stricte : Préfixes valides au Sénégal uniquement
+    // Orange : 77, 78
+    // Free (ex-Tigo) : 76
+    // Expresso : 70
+    // Promobile : 75
     final validPrefixes = ['70', '75', '76', '77', '78'];
     final prefix = cleaned.substring(0, 2);
+    
     if (!validPrefixes.contains(prefix)) {
-      return 'Numéro invalide (70, 75, 76, 77, 78)';
+      return 'Numéro sénégalais invalide (70, 75, 76, 77, 78)';
     }
+    
     return null;
   }
 }
