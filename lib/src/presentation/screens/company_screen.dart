@@ -342,31 +342,31 @@ class _CompanyScreenState extends State<CompanyScreen> {
     return SliverAppBar(
       expandedHeight: 220,
       pinned: true,
-      backgroundColor: const Color(0xFF2D2D2D),
-      flexibleSpace: FlexibleSpaceBar(
-        background: Container(
-          decoration: const BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage('assets/images/background.png'),
-              fit: BoxFit.cover,
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      flexibleSpace: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/background.png'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.black.withOpacity(0.2),
+                Colors.black.withOpacity(0.7),
+              ],
             ),
           ),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.black.withOpacity(0.3),
-                  Colors.black.withOpacity(0.7),
-                ],
-              ),
-            ),
-            child: Column(
+          child: FlexibleSpaceBar(
+            background: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const SizedBox(height: 40),
-                // Logo Positionné au dessus du nom
                 GestureDetector(
                   onTap: _pickLogo,
                   child: Container(
