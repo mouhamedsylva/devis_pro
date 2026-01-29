@@ -177,43 +177,54 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Logo
-                      Image.asset(
-                        'assets/images/app_logo.png',
-                        width: isWeb ? 300 : 250,
-                        height: isWeb ? 100 : 80,
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) {
-                          // Si pas de logo, afficher le texte DEVISPRO
-                          return Column(
-                            children: [
-                              RichText(
-                                text: TextSpan(
-                                  children: [
-                                    TextSpan(
-                                      text: 'DEVIS',
-                                      style: TextStyle(
-                                        fontSize: isWeb ? 48 : 40,
-                                        fontWeight: FontWeight.w900,
-                                        color: AppColors.yellow,
-                                        letterSpacing: 2,
-                                      ),
-                                    ),
-                                    TextSpan(
-                                      text: 'PRO',
-                                      style: TextStyle(
-                                        fontSize: isWeb ? 48 : 40,
-                                        fontWeight: FontWeight.w900,
-                                        color: Colors.white,
-                                        letterSpacing: 2,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                      // Logo avec icône circulaire à gauche
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: isWeb ? 60 : 50,
+                            height: isWeb ? 60 : 50,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: LinearGradient(
+                                colors: [AppColors.yellow, const Color(0xFFFFD700)],
                               ),
-                            ],
-                          );
-                        },
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.yellow.withOpacity(0.3),
+                                  blurRadius: 12,
+                                  spreadRadius: 2,
+                                ),
+                              ],
+                            ),
+                            child: const Icon(Icons.description, color: Colors.white, size: 28),
+                          ),
+                          const SizedBox(width: 16),
+                          RichText(
+                            text: TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: 'DEVIS',
+                                  style: TextStyle(
+                                    fontSize: isWeb ? 48 : 40,
+                                    fontWeight: FontWeight.w900,
+                                    color: AppColors.yellow,
+                                    letterSpacing: 2,
+                                  ),
+                                ),
+                                TextSpan(
+                                  text: 'PRO',
+                                  style: TextStyle(
+                                    fontSize: isWeb ? 48 : 40,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
+                                    letterSpacing: 2,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
 
                       const SizedBox(height: 16),
