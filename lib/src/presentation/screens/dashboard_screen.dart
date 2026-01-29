@@ -346,7 +346,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       children: [
                         Expanded(child: _buildStatCard(icon: Icons.people_rounded, value: state.totalClients.toString(), label: 'Clients')),
                         const SizedBox(width: 12),
-                        Expanded(child: _buildStatCard(icon: Icons.receipt_long_rounded, value: state.totalQuotes.toString(), label: 'Devis total')),
+                        Expanded(
+                          child: _buildStatCard(
+                            icon: Icons.receipt_long_rounded, 
+                            value: state.totalQuotes.toString(), 
+                            label: 'Devis totaux',
+                            iconColor: Colors.blue, // Ajout de la couleur bleue pour l'icône
+                          ),
+                        ),
                       ],
                     ),
                     // Commented out Products and Templates section for v2
@@ -381,9 +388,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     bool showBadge = false,
     Color? backgroundColor,
     String? badgeText,
+    Color? iconColor, // Nouveau paramètre
   }) {
     final effectiveContentColor = backgroundColor == Colors.blue ? Colors.white : const Color(0xFF1A1A1A);
     final effectiveSubColor = backgroundColor == Colors.blue ? Colors.white70 : const Color(0xFF666666);
+    final effectiveIconColor = iconColor ?? (backgroundColor == Colors.blue ? Colors.white : AppColors.yellow); // Logique pour la couleur de l'icône
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -400,10 +409,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: backgroundColor == Colors.blue ? Colors.white.withOpacity(0.2) : AppColors.yellow.withOpacity(0.1),
+                  color: backgroundColor == Colors.blue 
+                    ? Colors.white.withOpacity(0.2) 
+                    : (iconColor?.withOpacity(0.1) ?? AppColors.yellow.withOpacity(0.1)), // Utilise la couleur de l'icône pour le background
                   borderRadius: BorderRadius.circular(12)
                 ),
-                child: Icon(icon, color: backgroundColor == Colors.blue ? Colors.white : AppColors.yellow, size: 22),
+                child: Icon(icon, color: effectiveIconColor, size: 22), // Utilise la couleur effective
               ),
               if (showBadge) ...[
                 const Spacer(),
@@ -440,36 +451,96 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   label: 'Nouveau devis',
                   color: AppColors.yellow,
                   onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => const QuoteEditorScreen())).then((_) {
-                      if (context.mounted) context.read<DashboardBloc>().add(LoadDashboardData());
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const QuoteEditorScreen()),
+                    ).then((_) {
+                      if (context.mounted) {
+                        context.read<DashboardBloc>().add(LoadDashboardData());
+                      }
                     });
                   },
                 ),
               ),
               const SizedBox(width: 12),
-              Expanded(child: _buildQuickActionButton(icon: Icons.person_add_rounded, label: 'Ajouter client', color: const Color(0xFF4CAF50), onTap: () => _onItemTapped(2))),
-            ],
+              Expanded(
+                child: _buildQuickActionButton(
+                  icon: Icons.person_add_rounded,
+                  label: 'Ajouter client',
+                  color: const Color(0xFF4CAF50),
+                  onTap: () => _onItemTapped(2),
+                ),
+              ),
+          ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildQuickActionButton({required IconData icon, required String label, required Color color, required VoidCallback onTap}) {
+  Widget _buildQuickActionButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 18),
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            gradient: LinearGradient(
+              colors: [
+                color.withOpacity(0.1),
+                color.withOpacity(0.05),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: color.withOpacity(0.3), width: 2),
-            boxShadow: [BoxShadow(color: color.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 4))],
+            border: Border.all(
+              color: color.withOpacity(0.3),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(icon, color: color, size: 22), const SizedBox(width: 8), Text(label, style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.w700))]),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  icon,
+                  color: color,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: color.withOpacity(0.9),
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -215,10 +215,7 @@ class _QuotesScreenState extends State<QuotesScreen> {
   }
 
   Widget _buildQuoteCard(BuildContext context, dynamic quote) {
-    final statusColor = _getStatusColor(quote.status);
-    final statusIcon = _getStatusIcon(quote.status);
     final clientName = quote.clientName ?? 'Client non spécifié';
-    final isDraft = quote.status == 'Brouillon';
     
     return Dismissible(
       key: ValueKey('quote_${quote.id}'),
@@ -269,107 +266,82 @@ class _QuotesScreenState extends State<QuotesScreen> {
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Ligne 1 : Numéro du devis (petit texte gris)
+                  Text(
+                    quote.quoteNumber,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[500],
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  // Ligne 2 : Nom du client (gros et gras) + Montant (aligné à droite)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Numéro du devis
-                      Text(
-                        quote.quoteNumber,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFF1A1A1A),
-                        ),
-                      ),
-                      // Statut (Affiché uniquement si pas Brouillon)
-                      if (!isDraft)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: statusColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: statusColor.withOpacity(0.3)),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(statusIcon, size: 14, color: statusColor),
-                              const SizedBox(width: 6),
-                              Text(
-                                quote.status,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  color: statusColor,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      // Icône Client
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppColors.yellow.withOpacity(0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(Icons.person_rounded, color: AppColors.yellow, size: 20),
-                      ),
-                      const SizedBox(width: 12),
-                      // Infos Client & Date
+                      // Nom du client
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              clientName,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF2D2D2D),
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              Formatters.dateShort(quote.date),
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
+                        child: Text(
+                          clientName,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF1A1A1A),
+                            height: 1.2,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      const SizedBox(width: 16),
                       // Montant
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            Formatters.moneyCfa(quote.totalTTC, currencyLabel: _currency),
-                            style: TextStyle(
-                              fontSize: 18,
+                            Formatters.moneyCfa(quote.totalTTC, currencyLabel: '').trim(),
+                            style: const TextStyle(
+                              fontSize: 20,
                               fontWeight: FontWeight.w900,
-                              color: AppColors.yellow,
+                              color: Color(0xFF1A1A1A),
+                              height: 1.2,
                             ),
                           ),
-                          const Text(
-                            'Montant TTC',
+                          const SizedBox(height: 2),
+                          Text(
+                            _currency,
                             style: TextStyle(
-                              fontSize: 10,
+                              fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: Colors.grey,
+                              color: Colors.grey[600],
                             ),
                           ),
                         ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  // Ligne 3 : Date avec icône
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today_rounded,
+                        size: 14,
+                        color: Colors.grey[600],
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        Formatters.dateShort(quote.date),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ],
                   ),

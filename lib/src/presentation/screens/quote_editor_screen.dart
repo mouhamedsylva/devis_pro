@@ -201,6 +201,10 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
     final totalHT = _lines.fold<double>(0, (sum, l) => sum + l.unitPrice * l.quantity);
     final totalVAT = _lines.fold<double>(0, (sum, l) => sum + (l.unitPrice * l.quantity * l.vatRate));
     final totalTTC = totalHT + totalVAT;
+    
+    // ✅ Vérification si l'étape 1 est complétée
+    final isStep1Complete = _clientNameController.text.trim().isNotEmpty && 
+                            _clientPhoneController.text.trim().isNotEmpty;
 
     return Column(
       children: [
@@ -222,18 +226,21 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
                   stepNumber: 2,
                   title: 'Ajouter des articles',
                   icon: Icons.shopping_cart,
+                  isDisabled: !isStep1Complete, // ✅ Nouveau paramètre
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
-                          onPressed: () => _addLineDialog(context),
+                          onPressed: isStep1Complete ? () => _addLineDialog(context) : null, // ✅ Désactiver si étape 1 non complétée
                           icon: const Icon(Icons.add_circle_outline),
                           label: const Text('Ajouter un article'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.yellow,
                             foregroundColor: Colors.white,
+                            disabledBackgroundColor: Colors.grey[300], // ✅ Couleur grise quand désactivé
+                            disabledForegroundColor: Colors.grey[500], // ✅ Texte gris quand désactivé
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             elevation: 0,
@@ -512,88 +519,111 @@ class _QuoteEditorScreenState extends State<QuoteEditorScreen> {
     required String title,
     required IconData icon,
     required Widget child,
+    bool isDisabled = false, // ✅ Nouveau paramètre avec valeur par défaut
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // En-tête de l'étape
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  AppColors.yellow.withOpacity(0.1),
-                  AppColors.yellow.withOpacity(0.05),
-                ],
-              ),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
-              ),
+    return Opacity(
+      opacity: isDisabled ? 0.5 : 1.0, // ✅ Réduire l'opacité si désactivé
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(isDisabled ? 0.02 : 0.05), // ✅ Ombre réduite si désactivé
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
-            child: Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppColors.yellow,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Text(
-                      stepNumber.toString(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
-                      ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // En-tête de l'étape
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: isDisabled 
+                      ? [Colors.grey.withOpacity(0.1), Colors.grey.withOpacity(0.05)] // ✅ Gradient gris si désactivé
+                      : [
+                          AppColors.yellow.withOpacity(0.1),
+                          AppColors.yellow.withOpacity(0.05),
+                        ],
+                ),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: isDisabled ? Colors.grey[400] : AppColors.yellow, // ✅ Badge gris si désactivé
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: isDisabled 
+                          ? Icon(Icons.lock_outline, color: Colors.white, size: 20) // ✅ Icône cadenas si désactivé
+                          : Text(
+                              stepNumber.toString(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black87,
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: isDisabled ? Colors.grey[600] : Colors.black87, // ✅ Texte gris si désactivé
+                          ),
                         ),
-                      ),
-                    ],
+                        if (isDisabled) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Complétez l\'étape 1 d\'abord',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.grey[500],
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
-                ),
-                Icon(
-                  icon,
-                  color: AppColors.yellow,
-                  size: 28,
-                ),
-              ],
+                  Icon(
+                    icon,
+                    color: isDisabled ? Colors.grey[400] : AppColors.yellow, // ✅ Icône grise si désactivé
+                    size: 28,
+                  ),
+                ],
+              ),
             ),
-          ),
-          
-          // Contenu de l'étape
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: child,
-          ),
-        ],
+            
+            // Contenu de l'étape
+            IgnorePointer(
+              ignoring: isDisabled, // ✅ Empêcher les interactions si désactivé
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: child,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
